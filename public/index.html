@@ -634,8 +634,8 @@ function goStep(n) {
     if(si){
       si.className='step-item';
       if(i<n){si.classList.add('done');si.style.cursor='pointer';si.onclick=()=>goStep(i);sn.innerHTML='✓';}
-      else{si.style.cursor='';si.onclick=null;sn.textContent=i===n?i:i;}      else if(i===n){si.classList.add('active');sn.textContent=i;}
-      else{sn.textContent=i;}
+      else if(i===n){si.classList.add('active');sn.textContent=i;}
+      else{si.style.cursor='';si.onclick=null;sn.textContent=i;}
     }
   }
   window.scrollTo({top:0,behavior:'smooth'});
