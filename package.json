@@ -1,0 +1,9 @@
+{
+  "name": "deltaquad-nda-tool",
+  "version": "1.0.0",
+  "description": "DeltaQuad Mutual NDA Generator",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  }
+}

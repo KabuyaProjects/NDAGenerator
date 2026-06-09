@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeltaQuad NDA Generator</title>
+<script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --brand:#1a2e4a;--brand-mid:#2c4f7a;--accent:#0ea5e9;--accent-light:#e0f2fe;
+  --success:#16a34a;--success-light:#dcfce7;--warn:#d97706;--warn-light:#fef3c7;
+  --danger:#dc2626;--danger-light:#fee2e2;
+  --surface:#ffffff;--surface2:#f8fafc;--surface3:#f1f5f9;
+  --border:#e2e8f0;--border2:#cbd5e1;
+  --text:#0f172a;--text2:#475569;--text3:#94a3b8;
+  --radius:10px;--shadow:0 1px 3px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.06)
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--surface3);color:var(--text);min-height:100vh;line-height:1.5}
+header{background:var(--brand);color:#fff;padding:0 2rem;display:flex;align-items:center;gap:1rem;height:60px;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+header h1{font-size:1.05rem;font-weight:600;letter-spacing:-.01em}
+header span{font-size:.8rem;opacity:.6;margin-left:auto}
+.layout{max-width:840px;margin:0 auto;padding:2rem 1rem 4rem}
+.stepper{display:flex;align-items:center;margin-bottom:2rem;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:.75rem 1.25rem}
+.step-item{display:flex;align-items:center;gap:.5rem;flex:1;min-width:0}
+.step-item+.step-item::before{content:'';width:20px;height:1px;background:var(--border2);flex-shrink:0;margin-right:.5rem}
+.step-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;border:1.5px solid var(--border2);color:var(--text3);background:var(--surface3);transition:all .2s}
+.step-item.active .step-num{background:var(--accent);border-color:var(--accent);color:#fff}
+.step-item.done .step-num{background:var(--success);border-color:var(--success);color:#fff}
+.step-label{font-size:.78rem;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.step-item.active .step-label{color:var(--text);font-weight:500}
+.step-item.done .step-label{color:var(--success)}
+.card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);padding:1.75rem;margin-bottom:1.25rem}
+.card-title{font-size:1rem;font-weight:600;color:var(--text);margin-bottom:1.25rem;padding-bottom:.75rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
+.card-title-icon{width:28px;height:28px;background:var(--accent-light);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:.9rem;flex-shrink:0}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
+.form-grid.full{grid-template-columns:1fr}
+.span2{grid-column:span 2}
+.field{display:flex;flex-direction:column;gap:.35rem}
+label{font-size:.8rem;font-weight:500;color:var(--text2)}
+label .req{color:var(--danger);margin-left:2px}
+input,select,textarea{width:100%;padding:.55rem .75rem;border:1px solid var(--border2);border-radius:7px;font-size:.875rem;color:var(--text);background:var(--surface);transition:border-color .15s,box-shadow .15s;outline:none;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(14,165,233,.12)}
+input::placeholder,textarea::placeholder{color:var(--text3)}
+textarea{resize:vertical;min-height:80px}
+input.error,select.error,textarea.error{border-color:var(--danger)}
+.field-hint{font-size:.75rem;color:var(--text3)}
+/* Search row */
+.search-row{display:flex;gap:.6rem;align-items:flex-end}
+.search-row input{flex:1}
+/* Country select */
+.country-search-wrap{position:relative}
+.country-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:7px;max-height:200px;overflow-y:auto;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.country-opt{padding:.45rem .75rem;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:.5rem}
+.country-opt:hover,.country-opt.selected{background:var(--accent-light);color:var(--brand)}
+.country-opt .flag{font-size:1rem}
+.jur-code{font-size:.7rem;color:var(--text3);margin-left:auto}
+/* Registry result */
+.reg-result{margin-top:.75rem;padding:.8rem 1rem;border-radius:8px;display:none}
+.reg-result.show{display:block}
+.reg-result.ok{background:var(--success-light);border:1px solid #bbf7d0;color:#15803d}
+.reg-result.warn{background:var(--warn-light);border:1px solid #fde68a;color:#92400e}
+.reg-result.err{background:var(--danger-light);border:1px solid #fecaca;color:#991b1b}
+.reg-result strong{display:block;font-weight:600;margin-bottom:.3rem}
+.reg-companies{margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem}
+.reg-company{padding:.5rem .75rem;background:rgba(255,255,255,.7);border-radius:6px;cursor:pointer;border:1px solid transparent;transition:border-color .15s}
+.reg-company:hover,.reg-company.picked{border-color:var(--success);background:#fff}
+.reg-company-name{font-weight:600;font-size:.85rem}
+.reg-company-meta{font-size:.75rem;opacity:.8;margin-top:.15rem}
+.person-row{display:flex;align-items:center;gap:.5rem;font-size:.8rem;padding:.2rem 0}
+.badge{font-size:.68rem;font-weight:600;padding:1px 7px;border-radius:20px}
+.badge-ok{background:#d1fae5;color:#065f46}
+.badge-no{background:#fee2e2;color:#991b1b}
+.badge-uk{background:#e0f2fe;color:#0c4a6e}
+/* Toggle */
+.toggle-card{border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;display:flex;align-items:flex-start;gap:1rem;cursor:pointer;transition:border-color .15s,background .15s}
+.toggle-card:hover{border-color:var(--accent);background:var(--accent-light)}
+.toggle-card.active{border-color:var(--accent);background:var(--accent-light)}
+.toggle-switch{position:relative;width:40px;height:22px;flex-shrink:0;margin-top:2px}
+.toggle-switch input{opacity:0;width:0;height:0;position:absolute}
+.toggle-track{position:absolute;inset:0;background:var(--border2);border-radius:11px;transition:background .2s;cursor:pointer}
+.toggle-track::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+input:checked+.toggle-track{background:var(--accent)}
+input:checked+.toggle-track::after{transform:translateX(18px)}
+.toggle-text strong{display:block;font-size:.875rem;font-weight:600}
+.toggle-text p{font-size:.78rem;color:var(--text2);margin-top:.15rem}
+/* Summary */
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.summary-block{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem}
+.summary-block h4{font-size:.72rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem}
+.summary-row{display:flex;flex-direction:column;gap:.1rem;margin-bottom:.5rem}
+.summary-key{font-size:.72rem;color:var(--text3)}
+.summary-val{font-size:.82rem;color:var(--text);font-weight:500}
+.art36-badge{display:inline-flex;align-items:center;gap:.3rem;font-size:.75rem;font-weight:600;padding:.25rem .6rem;border-radius:20px;margin-top:.25rem}
+.art36-badge.inc{background:var(--success-light);color:var(--success)}
+.art36-badge.exc{background:var(--surface3);color:var(--text3)}
+/* Buttons */
+.btn-row{display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.5rem}
+.btn{padding:.6rem 1.3rem;border-radius:7px;font-size:.875rem;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;gap:.4rem;text-decoration:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.btn-ghost:hover:not(:disabled){background:var(--surface3)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover:not(:disabled){background:#0284c7}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:hover:not(:disabled){background:#15803d}
+.btn-brand{background:var(--brand);color:#fff}
+.btn-brand:hover:not(:disabled){background:var(--brand-mid)}
+/* Download */
+.download-box{text-align:center;padding:2.5rem 1.5rem}
+.download-icon{width:72px;height:72px;background:var(--success-light);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:2rem}
+.download-box h2{font-size:1.2rem;font-weight:600;margin-bottom:.5rem}
+.download-box p{font-size:.875rem;color:var(--text2);margin-bottom:1.5rem}
+.dl-actions{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}
+/* Alert */
+.alert{padding:.75rem 1rem;border-radius:7px;font-size:.825rem;display:flex;align-items:flex-start;gap:.5rem;margin-bottom:1rem}
+.alert-info{background:var(--accent-light);border:1px solid #bae6fd;color:#0c4a6e}
+.alert-warn{background:var(--warn-light);border:1px solid #fde68a;color:#78350f}
+/* Requester section */
+.requester-banner{background:linear-gradient(135deg,#1a2e4a 0%,#2c4f7a 100%);border-radius:var(--radius);padding:1.25rem 1.5rem;color:#fff;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem}
+.requester-banner .rb-icon{font-size:1.5rem}
+.requester-banner h3{font-size:.95rem;font-weight:600;margin-bottom:.15rem}
+.requester-banner p{font-size:.8rem;opacity:.75}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+.spinner.dark{border-color:rgba(0,0,0,.15);border-top-color:var(--accent)}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}.span2{grid-column:span 1}.summary-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="6" fill="#0ea5e9" fill-opacity=".15"/>
+    <path d="M14 5L22 10V18L14 23L6 18V10L14 5Z" stroke="#0ea5e9" stroke-width="1.5" fill="none"/>
+    <path d="M14 5V23M6 10L22 10M6 18L22 18" stroke="#0ea5e9" stroke-width="1" opacity=".5"/>
+  </svg>
+  <h1>DeltaQuad NDA Generator</h1>
+  <span>Mutual Non-Disclosure Agreement · v03-2025</span>
+</header>
+
+<div class="layout">
+  <div class="stepper">
+    <div class="step-item active" id="s1"><div class="step-num" id="sn1">1</div><span class="step-label">Requester</span></div>
+    <div class="step-item" id="s2"><div class="step-num" id="sn2">2</div><span class="step-label">Counterparty</span></div>
+    <div class="step-item" id="s3"><div class="step-num" id="sn3">3</div><span class="step-label">Purpose &amp; Options</span></div>
+    <div class="step-item" id="s4"><div class="step-num" id="sn4">4</div><span class="step-label">Review</span></div>
+    <div class="step-item" id="s5"><div class="step-num" id="sn5">5</div><span class="step-label">Download</span></div>
+  </div>
+
+  <!-- STEP 1: Requester (DeltaQuad colleague) -->
+  <div id="page1">
+    <div class="requester-banner">
+      <div class="rb-icon">👤</div>
+      <div>
+        <h3>Who is requesting this NDA?</h3>
+        <p>This information is used to notify legal@deltaquad.com when the NDA is downloaded.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="card-title-icon">🏢</div>DeltaQuad requester details</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Your first name <span class="req">*</span></label>
+          <input type="text" id="req_first" placeholder="e.g. Sophie">
+        </div>
+        <div class="field">
+          <label>Your last name <span class="req">*</span></label>
+          <input type="text" id="req_last" placeholder="e.g. van den Berg">
+        </div>
+        <div class="field span2">
+          <label>Your DeltaQuad email <span class="req">*</span></label>
+          <input type="email" id="req_email" placeholder="you@deltaquad.com">
+          <span class="field-hint">A copy of the NDA details will be sent to legal@deltaquad.com mentioning your name.</span>
+        </div>
+        <div class="field span2">
+          <label>Department / team</label>
+          <input type="text" id="req_dept" placeholder="e.g. Sales, Engineering, Procurement">
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="goStep(2)">Continue → Counterparty</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Counterparty -->
+  <div id="page2" style="display:none">
+    <div class="card">
+      <div class="card-title"><div class="card-title-icon">🔍</div>Company registry lookup</div>
+      <div class="alert alert-info">
+        <span>ℹ️</span>
+        <div>Search by <strong>company name</strong> or <strong>registration number</strong> across 140+ jurisdictions (OpenCorporates) or directly via the Dutch KvK API. Select the country first to narrow results.</div>
+      </div>
+      <div class="form-grid" style="margin-bottom:.75rem">
+        <div class="field">
+          <label>Country / jurisdiction</label>
+          <div class="country-search-wrap">
+            <input type="text" id="country_search" placeholder="Type to search country…" autocomplete="off" oninput="filterCountries()" onfocus="showCountries()" onblur="hideCountries()">
+            <div class="country-dropdown" id="country_dropdown" style="display:none"></div>
+          </div>
+          <span class="field-hint" id="jur_hint"></span>
+        </div>
+        <div class="field">
+          <label>Search company name or registration number</label>
+          <div class="search-row">
+            <input type="text" id="reg_query" placeholder="e.g. Airbus or 12345678" onkeydown="if(event.key==='Enter')searchRegistry()">
+            <button class="btn btn-primary" onclick="searchRegistry()" id="reg_btn"><span id="reg_btn_txt">Search</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="reg-result" id="reg_result"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><div class="card-title-icon">🏢</div>Counterparty details</div>
+      <div class="form-grid">
+        <div class="field span2">
+          <label>Company name <span class="req">*</span></label>
+          <input type="text" id="cp_name" placeholder="Legal company name">
+        </div>
+        <div class="field span2">
+          <label>Registered address <span class="req">*</span></label>
+          <input type="text" id="cp_street" placeholder="Street and number">
+        </div>
+        <div class="field">
+          <label>Postal code <span class="req">*</span></label>
+          <input type="text" id="cp_postal" placeholder="1234 AB">
+        </div>
+        <div class="field">
+          <label>City <span class="req">*</span></label>
+          <input type="text" id="cp_city" placeholder="City">
+        </div>
+        <div class="field span2">
+          <label>Country <span class="req">*</span></label>
+          <input type="text" id="cp_country" placeholder="Country">
+        </div>
+        <div class="field">
+          <label>Registration number</label>
+          <input type="text" id="cp_regno" placeholder="Company reg / KvK number">
+        </div>
+        <div class="field">
+          <label>Registry / authority</label>
+          <input type="text" id="cp_reg_auth" placeholder="e.g. KvK, Companies House">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><div class="card-title-icon">✍️</div>Authorized signatory (counterparty)</div>
+      <div class="form-grid">
+        <div class="field span2">
+          <label>Full name <span class="req">*</span></label>
+          <input type="text" id="sig_name" placeholder="e.g. Jan de Vries">
+        </div>
+        <div class="field span2">
+          <label>Title / role <span class="req">*</span></label>
+          <input type="text" id="sig_title" placeholder="e.g. Managing Director">
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goStep(1)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(3)">Continue → Purpose &amp; Options</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Purpose & Options -->
+  <div id="page3" style="display:none">
+    <div class="card">
+      <div class="card-title"><div class="card-title-icon">📋</div>Purpose of the NDA</div>
+      <div class="form-grid full">
+        <div class="field">
+          <label>Purpose description <span class="req">*</span></label>
+          <textarea id="purpose" rows="4" placeholder="Describe the goal of the NDA as narrowly and precisely as possible. E.g.: evaluation of a potential partnership for the supply of UAV components for DeltaQuad's Pro X4 platform."></textarea>
+          <span class="field-hint">This appears verbatim in the NDA. Be specific — courts interpret NDA scope strictly.</span>
+        </div>
+        <div class="field">
+          <label>Effective date</label>
+          <input type="date" id="eff_date">
+          <span class="field-hint">Leave blank to use the date of last signature.</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="card-title-icon">⚙️</div>Article 3.6 — Supplier IP clause</div>
+      <div class="alert alert-warn">
+        <span>⚠️</span>
+        <div><strong>Article 3.6</strong> applies only when the counterparty is a <strong>supplier</strong> to DeltaQuad. It governs ownership of new IP developed using DeltaQuad's confidential information. Remove it for customers, partners, or exploratory NDAs.</div>
+      </div>
+      <label class="toggle-card" id="art36_card">
+        <div class="toggle-switch">
+          <input type="checkbox" id="art36_toggle" onchange="toggleArt36()">
+          <span class="toggle-track"></span>
+        </div>
+        <div class="toggle-text">
+          <strong>Include Article 3.6 — IP developed from Confidential Information</strong>
+          <p>Counterparty is a <strong>supplier</strong> to DeltaQuad. New proprietary information developed using DeltaQuad's CI requires good-faith agreement on ownership before use outside the Purpose.</p>
+        </div>
+      </label>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goStep(2)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(4)">Continue → Review</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: Review -->
+  <div id="page4" style="display:none">
+    <div class="card">
+      <div class="card-title"><div class="card-title-icon">📄</div>Review before generating</div>
+      <div class="summary-grid">
+        <div class="summary-block">
+          <h4>DeltaQuad B.V.</h4>
+          <div class="summary-row"><span class="summary-key">Company</span><span class="summary-val">DeltaQuad B.V.</span></div>
+          <div class="summary-row"><span class="summary-key">Address</span><span class="summary-val">Industrieweg 3, 1115 AD, Duivendrecht, NL</span></div>
+          <div class="summary-row"><span class="summary-key">KvK</span><span class="summary-val">51835193</span></div>
+          <div class="summary-row"><span class="summary-key">Signed by</span><span class="summary-val">R.K. Quatfass — Operations Manager</span></div>
+          <div class="summary-row"><span class="summary-key">Requested by</span><span class="summary-val" id="rev_requester">—</span></div>
+        </div>
+        <div class="summary-block">
+          <h4>Counterparty</h4>
+          <div class="summary-row"><span class="summary-key">Company</span><span class="summary-val" id="rev_cp_name">—</span></div>
+          <div class="summary-row"><span class="summary-key">Address</span><span class="summary-val" id="rev_cp_addr">—</span></div>
+          <div class="summary-row"><span class="summary-key">Registration</span><span class="summary-val" id="rev_regno">—</span></div>
+          <div class="summary-row"><span class="summary-key">Signed by</span><span class="summary-val" id="rev_sig">—</span></div>
+        </div>
+      </div>
+      <div class="summary-block" style="margin-top:1rem">
+        <h4>NDA details</h4>
+        <div class="summary-row"><span class="summary-key">Purpose</span><span class="summary-val" id="rev_purpose">—</span></div>
+        <div class="summary-row"><span class="summary-key">Term</span><span class="summary-val">5 years from effective date · 3-year post-termination obligation</span></div>
+        <div class="summary-row"><span class="summary-key">Governing law</span><span class="summary-val">Netherlands · Amsterdam courts</span></div>
+        <div class="summary-row"><span class="summary-key">Article 3.6</span><span class="summary-val"><span class="art36-badge" id="rev_art36">—</span></span></div>
+      </div>
+      <div class="summary-block" style="margin-top:1rem;background:var(--accent-light);border-color:#bae6fd">
+        <h4 style="color:#0c4a6e">📧 Notification</h4>
+        <div class="summary-row"><span class="summary-key" style="color:#0c4a6e">Upon download</span><span class="summary-val" style="color:#0c4a6e" id="rev_notify">legal@deltaquad.com will be notified</span></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goStep(3)">← Back</button>
+      <button class="btn btn-brand" onclick="generateNDA()" id="gen_btn"><span id="gen_btn_inner">📄 Generate NDA (.docx)</span></button>
+    </div>
+  </div>
+
+  <!-- STEP 5: Download -->
+  <div id="page5" style="display:none">
+    <div class="card">
+      <div class="download-box">
+        <div class="download-icon">✅</div>
+        <h2>Your NDA is ready</h2>
+        <p id="dl_subtitle">Pre-filled and ready for signature.</p>
+        <div class="dl-actions">
+          <a class="btn btn-success" id="dl_link" href="#" download="DeltaQuad_NDA.docx">⬇ Download NDA (.docx)</a>
+          <a class="btn btn-primary" id="mail_link" href="#">📧 Notify legal (email)</a>
+        </div>
+        <div style="margin-top:1.25rem">
+          <button class="btn btn-ghost" onclick="reset()">↩ Start a new NDA</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="font-size:.82rem;color:var(--text2)">
+      <div class="card-title" style="font-size:.875rem">📌 Next steps</div>
+      <ol style="padding-left:1.2rem;display:flex;flex-direction:column;gap:.5rem;line-height:1.6">
+        <li>Download the document and check all pre-filled fields.</li>
+        <li>Click <strong>Notify legal</strong> to open a pre-filled email to legal@deltaquad.com — send it to formally register the NDA request.</li>
+        <li>Have R.K. Quatfass (Operations Manager) countersign for DeltaQuad.</li>
+        <li>Send to counterparty for their signature.</li>
+        <li>File the fully executed NDA in your contract management system.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Country data (jurisdiction codes for OpenCorporates / KvK for NL) ──
+const COUNTRIES = [
+  {name:'Netherlands',flag:'🇳🇱',jur:'nl',kvk:true},
+  {name:'United Kingdom',flag:'🇬🇧',jur:'gb'},
+  {name:'Germany',flag:'🇩🇪',jur:'de'},
+  {name:'France',flag:'🇫🇷',jur:'fr'},
+  {name:'United States',flag:'🇺🇸',jur:'us_de'},
+  {name:'Belgium',flag:'🇧🇪',jur:'be'},
+  {name:'Sweden',flag:'🇸🇪',jur:'se'},
+  {name:'Denmark',flag:'🇩🇰',jur:'dk'},
+  {name:'Norway',flag:'🇳🇴',jur:'no'},
+  {name:'Finland',flag:'🇫🇮',jur:'fi'},
+  {name:'Switzerland',flag:'🇨🇭',jur:'ch'},
+  {name:'Austria',flag:'🇦🇹',jur:'at'},
+  {name:'Spain',flag:'🇪🇸',jur:'es'},
+  {name:'Italy',flag:'🇮🇹',jur:'it'},
+  {name:'Poland',flag:'🇵🇱',jur:'pl'},
+  {name:'Luxembourg',flag:'🇱🇺',jur:'lu'},
+  {name:'Ireland',flag:'🇮🇪',jur:'ie'},
+  {name:'Canada',flag:'🇨🇦',jur:'ca_on'},
+  {name:'Australia',flag:'🇦🇺',jur:'au'},
+  {name:'Singapore',flag:'🇸🇬',jur:'sg'},
+  {name:'Japan',flag:'🇯🇵',jur:'jp'},
+  {name:'South Korea',flag:'🇰🇷',jur:'kr'},
+  {name:'China',flag:'🇨🇳',jur:'cn'},
+  {name:'India',flag:'🇮🇳',jur:'in'},
+  {name:'Israel',flag:'🇮🇱',jur:'il'},
+  {name:'United Arab Emirates',flag:'🇦🇪',jur:'ae'},
+  {name:'Brazil',flag:'🇧🇷',jur:'br'},
+  {name:'South Africa',flag:'🇿🇦',jur:'za'},
+  {name:'New Zealand',flag:'🇳🇿',jur:'nz'},
+  {name:'Portugal',flag:'🇵🇹',jur:'pt'},
+  {name:'Greece',flag:'🇬🇷',jur:'gr'},
+  {name:'Czech Republic',flag:'🇨🇿',jur:'cz'},
+  {name:'Romania',flag:'🇷🇴',jur:'ro'},
+  {name:'Hungary',flag:'🇭🇺',jur:'hu'},
+  {name:'Other',flag:'🌐',jur:''},
+];
+
+let selCountry = null;
+let art36 = false;
+let docxBlob = null;
+
+// ── Country search ──
+function filterCountries() {
+  const q = document.getElementById('country_search').value.toLowerCase();
+  renderCountryList(COUNTRIES.filter(c => c.name.toLowerCase().includes(q)));
+}
+function showCountries() {
+  renderCountryList(COUNTRIES);
+  document.getElementById('country_dropdown').style.display = '';
+}
+let hideTimer;
+function hideCountries() { hideTimer = setTimeout(()=>{ document.getElementById('country_dropdown').style.display='none'; }, 200); }
+
+function renderCountryList(list) {
+  const dd = document.getElementById('country_dropdown');
+  dd.style.display = '';
+  dd.innerHTML = list.map(c => `<div class="country-opt${selCountry&&selCountry.jur===c.jur?' selected':''}" onmousedown="pickCountry('${c.jur}')">${c.flag?`<span class="flag">${c.flag}</span>`:''}${c.name}<span class="jur-code">${c.jur||'—'}</span></div>`).join('');
+}
+function pickCountry(jur) {
+  clearTimeout(hideTimer);
+  selCountry = COUNTRIES.find(c=>c.jur===jur)||null;
+  if (selCountry) {
+    document.getElementById('country_search').value = selCountry.name;
+    document.getElementById('cp_country').value = selCountry.name;
+    const hint = selCountry.kvk ? '🇳🇱 Will use Dutch KvK API' : (selCountry.jur ? `OpenCorporates: ${selCountry.jur}` : 'No registry available — fill details manually');
+    document.getElementById('jur_hint').textContent = hint;
+  }
+  document.getElementById('country_dropdown').style.display='none';
+  document.getElementById('reg_result').className='reg-result';
+}
+
+// ── Registry search (KvK for NL, OpenCorporates for others) ──
+async function searchRegistry() {
+  const q = document.getElementById('reg_query').value.trim();
+  if (!q) return;
+  const btn = document.getElementById('reg_btn');
+  const txt = document.getElementById('reg_btn_txt');
+  btn.disabled=true; txt.innerHTML='<span class="spinner"></span>';
+
+  const res = document.getElementById('reg_result');
+  res.className='reg-result'; res.innerHTML='';
+
+  try {
+    if (selCountry && selCountry.kvk) {
+      await searchKvK(q);
+    } else if (selCountry && selCountry.jur) {
+      await searchOpenCorporates(q, selCountry.jur);
+    } else {
+      await searchOpenCorporates(q, null);
+    }
+  } catch(e) {
+    showReg('err','⚠️ Search failed', `<div>${e.message}</div><div style="margin-top:.3rem;font-size:.75rem;opacity:.7">Fill the company details manually below.</div>`);
+  } finally {
+    btn.disabled=false; txt.textContent='Search';
+  }
+}
+
+async function searchKvK(q) {
+  const url = `/api/kvk?q=${encodeURIComponent(q)}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`KvK API returned ${r.status}`);
+  const data = await r.json();
+
+  if (!data.resultaten || data.resultaten.length === 0) {
+    showReg('warn','⚠️ No results',`No companies found for "${q}" in the KvK registry.`); return;
+  }
+
+  let html = `<strong>✅ Found ${data.resultaten.length} result(s) — click to select</strong><div class="reg-companies">`;
+  data.resultaten.slice(0,5).forEach((co,i) => {
+    const addr = co.adres?.binnenlandsAdres
+      ? `${co.adres.binnenlandsAdres.straatnaam||''} ${co.adres.binnenlandsAdres.huisnummer||''}, ${co.adres.binnenlandsAdres.postcode||''} ${co.adres.binnenlandsAdres.plaats||''}`
+      : '';
+    html += `<div class="reg-company" onclick="fillFromKvK(${i})" id="kvk_co_${i}" data-co='${JSON.stringify({name:co.naam,kvk:co.kvkNummer,addr,street:co.adres?.binnenlandsAdres?.straatnaam||'',nr:co.adres?.binnenlandsAdres?.huisnummer||'',postal:co.adres?.binnenlandsAdres?.postcode||'',city:co.adres?.binnenlandsAdres?.plaats||''}).replace(/'/g,"&#39;")}'>
+      <div class="reg-company-name">🏢 ${co.naam}</div>
+      <div class="reg-company-meta">KvK ${co.kvkNummer}${addr?' · '+addr:''}</div>
+    </div>`;
+  });
+  html += '</div>';
+  showReg('ok','',html);
+}
+
+function fillFromKvK(i) {
+  const el = document.getElementById(`kvk_co_${i}`);
+  const co = JSON.parse(el.dataset.co.replace(/&#39;/g,"'"));
+  document.querySelectorAll('.reg-company').forEach(e=>e.classList.remove('picked'));
+  el.classList.add('picked');
+  document.getElementById('cp_name').value = co.name||'';
+  document.getElementById('cp_street').value = (co.street+' '+co.nr).trim();
+  document.getElementById('cp_postal').value = co.postal||'';
+  document.getElementById('cp_city').value = co.city||'';
+  document.getElementById('cp_country').value = 'The Netherlands';
+  document.getElementById('cp_regno').value = co.kvk||'';
+  document.getElementById('cp_reg_auth').value = 'Dutch Chamber of Commerce (KvK)';
+}
+
+async function searchOpenCorporates(q, jur) {
+  const isNum = /^[A-Z0-9\-\/]{4,20}$/i.test(q) && !/\s/.test(q);
+  const url = `/api/oc?q=${encodeURIComponent(q)}${jur ? '&jur=' + jur : ''}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`OpenCorporates returned ${r.status}`);
+  const data = await r.json();
+
+  if (data.results) {
+    // single company fetch
+    const co = data.results.company;
+    if (!co) { showReg('warn','⚠️ Not found','No company found.'); return; }
+    let html = `<strong>✅ Company found — click to use</strong><div class="reg-companies">`;
+    html += buildOCCard(co, 0);
+    html += '</div>';
+    showReg('ok','',html);
+  } else {
+    const companies = data.results?.companies || [];
+    if (!companies.length) { showReg('warn','⚠️ No results',`No companies found for "${q}"${jur?' in '+jur:' globally'}.`); return; }
+    let html = `<strong>✅ ${companies.length} result(s) — click to select</strong><div class="reg-companies">`;
+    companies.slice(0,6).forEach((c,i) => { html += buildOCCard(c.company, i); });
+    html += '</div>';
+    showReg('ok','',html);
+  }
+}
+
+function buildOCCard(co, i) {
+  const addr = co.registered_address_in_full || co.registered_address?.street_address || '';
+  const status = co.current_status || co.company_status || '';
+  const safe = JSON.stringify({
+    name: co.name, regno: co.company_number, jur: co.jurisdiction_code,
+    addr: co.registered_address_in_full||'',
+    street: co.registered_address?.street_address||'',
+    postal: co.registered_address?.postal_code||'',
+    city: co.registered_address?.locality||'',
+    country: co.registered_address?.country||co.jurisdiction_code||'',
+    oc_url: co.opencorporates_url||''
+  }).replace(/'/g,"&#39;");
+  const flag = COUNTRIES.find(c=>c.jur===co.jurisdiction_code)?.flag||'🌐';
+  return `<div class="reg-company" onclick="fillFromOC(this)" id="oc_co_${i}" data-co='${safe}'>
+    <div class="reg-company-name">${flag} ${co.name} <span style="font-size:.72rem;font-weight:400;opacity:.7">${co.jurisdiction_code}</span></div>
+    <div class="reg-company-meta">Reg# ${co.company_number}${addr?' · '+addr:''}${status?' · '+status:''}</div>
+  </div>`;
+}
+
+function fillFromOC(el) {
+  const co = JSON.parse(el.dataset.co.replace(/&#39;/g,"'"));
+  document.querySelectorAll('.reg-company').forEach(e=>e.classList.remove('picked'));
+  el.classList.add('picked');
+  document.getElementById('cp_name').value = co.name||'';
+  const parts = (co.addr||'').split(',');
+  document.getElementById('cp_street').value = co.street||parts[0]||'';
+  document.getElementById('cp_postal').value = co.postal||'';
+  document.getElementById('cp_city').value = co.city||parts[1]?.trim()||'';
+  document.getElementById('cp_country').value = co.country||selCountry?.name||'';
+  document.getElementById('cp_regno').value = co.regno||'';
+  const jurName = COUNTRIES.find(c=>c.jur===co.jur)?.name||co.jur||'';
+  document.getElementById('cp_reg_auth').value = `${jurName} Company Registry`;
+}
+
+function showReg(type, title, body) {
+  const el = document.getElementById('reg_result');
+  el.className = `reg-result show ${type}`;
+  el.innerHTML = (title?`<strong>${title}</strong>`:'')+body;
+}
+
+// ── Art 3.6 toggle ──
+function toggleArt36() {
+  art36 = document.getElementById('art36_toggle').checked;
+  const card = document.getElementById('art36_card');
+  art36 ? card.classList.add('active') : card.classList.remove('active');
+}
+
+// ── Helpers ──
+function val(id) { return (document.getElementById(id)?.value||'').trim(); }
+
+function goStep(n) {
+  // Validate per step
+  if (n===2) {
+    const errs=['req_first','req_last','req_email'].filter(id=>!val(id));
+    highlight(errs); if(errs.length) return;
+  }
+  if (n===3) {
+    const errs=['cp_name','cp_street','cp_postal','cp_city','cp_country','sig_name','sig_title'].filter(id=>!val(id));
+    highlight(errs); if(errs.length) return;
+  }
+  if (n===4) {
+    if (!val('purpose')) { highlight(['purpose']); return; }
+    populateReview();
+  }
+  for (let i=1;i<=5;i++) {
+    const p=document.getElementById(`page${i}`);
+    if(p) p.style.display = i===n?'':'none';
+    const si=document.getElementById(`s${i}`);
+    const sn=document.getElementById(`sn${i}`);
+    if(si){
+      si.className='step-item';
+      if(i<n){si.classList.add('done');sn.innerHTML='✓';}
+      else if(i===n){si.classList.add('active');sn.textContent=i;}
+      else{sn.textContent=i;}
+    }
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function highlight(ids) {
+  document.querySelectorAll('.error').forEach(e=>e.classList.remove('error'));
+  ids.forEach(id=>document.getElementById(id)?.classList.add('error'));
+  if(ids.length) document.getElementById(ids[0])?.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function populateReview() {
+  const reqName = `${val('req_first')} ${val('req_last')}`;
+  document.getElementById('rev_requester').textContent = `${reqName} (${val('req_email')})${val('req_dept')?' · '+val('req_dept'):''}`;
+  document.getElementById('rev_cp_name').textContent = val('cp_name');
+  document.getElementById('rev_cp_addr').textContent = `${val('cp_street')}, ${val('cp_postal')} ${val('cp_city')}, ${val('cp_country')}`;
+  const regno = val('cp_regno');
+  document.getElementById('rev_regno').textContent = regno ? `${regno}${val('cp_reg_auth')?' ('+val('cp_reg_auth')+')':''}` : 'Not provided';
+  document.getElementById('rev_sig').textContent = `${val('sig_name')} — ${val('sig_title')}`;
+  document.getElementById('rev_purpose').textContent = val('purpose');
+  const badge = document.getElementById('rev_art36');
+  if (art36) { badge.className='art36-badge inc'; badge.textContent='✓ Included (supplier NDA)'; }
+  else { badge.className='art36-badge exc'; badge.textContent='✗ Excluded'; }
+  document.getElementById('rev_notify').textContent =
+    `legal@deltaquad.com will be notified with your name (${val('req_first')} ${val('req_last')}) and NDA details`;
+}
+
+// ── Generate DOCX ──
+async function generateNDA() {
+  const btn = document.getElementById('gen_btn');
+  const inner = document.getElementById('gen_btn_inner');
+  btn.disabled=true; inner.innerHTML='<span class="spinner"></span> Generating…';
+  try {
+    docxBlob = buildDocx();
+    const url = URL.createObjectURL(docxBlob);
+    const fn = `DeltaQuad_NDA_${val('cp_name').replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toISOString().slice(0,10)}.docx`;
+    const dl = document.getElementById('dl_link');
+    dl.href = url; dl.download = fn;
+
+    // Build mailto
+    const reqName = `${val('req_first')} ${val('req_last')}`;
+    const reqEmail = val('req_email');
+    const dept = val('req_dept');
+    const cpName = val('cp_name');
+    const purpose = val('purpose');
+    const effDate = val('eff_date') || 'date of last signature';
+    const art36txt = art36 ? 'Yes (supplier NDA)' : 'No';
+    const subject = encodeURIComponent(`NDA Request: DeltaQuad ↔ ${cpName}`);
+    const body = encodeURIComponent(
+`Dear Legal team,
+
+A new mutual NDA has been generated and is ready for your records.
+
+REQUESTER
+  Name:       ${reqName}
+  Email:      ${reqEmail}${dept?'\n  Department: '+dept:''}
+
+COUNTERPARTY
+  Company:    ${cpName}
+  Address:    ${val('cp_street')}, ${val('cp_postal')} ${val('cp_city')}, ${val('cp_country')}
+  Reg. no.:   ${val('cp_regno')||'N/A'} ${val('cp_reg_auth')?'('+val('cp_reg_auth')+')':''}
+  Signatory:  ${val('sig_name')}, ${val('sig_title')}
+
+NDA DETAILS
+  Purpose:    ${purpose}
+  Art. 3.6 (Supplier IP clause): ${art36txt}
+  Effective:  ${effDate}
+  Template:   DeltaQuad Mutual NDA v03-2025
+
+Please file this NDA in the contract management system once both parties have signed.
+
+Kind regards,
+${reqName}
+`);
+    document.getElementById('mail_link').href =
+      `mailto:legal@deltaquad.com?cc=${encodeURIComponent(reqEmail)}&subject=${subject}&body=${body}`;
+
+    document.getElementById('dl_subtitle').textContent =
+      `Mutual NDA with ${cpName} — pre-filled and ready for signature.`;
+    goStep(5);
+  } catch(e) {
+    alert('Error generating document: '+e.message);
+    console.error(e);
+  } finally {
+    btn.disabled=false; inner.textContent='📄 Generate NDA (.docx)';
+  }
+}
+
+function buildDocx() {
+  const {
+    Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+    AlignmentType, WidthType, BorderStyle, LevelFormat
+  } = docx;
+
+  const cpName    = val('cp_name');
+  const cpStreet  = val('cp_street');
+  const cpPostal  = val('cp_postal');
+  const cpCity    = val('cp_city');
+  const cpCountry = val('cp_country');
+  const cpAddr    = `${cpStreet}, ${cpPostal}, ${cpCity}, ${cpCountry}`;
+  const regno     = val('cp_regno');
+  const regAuth   = val('cp_reg_auth');
+  const sigName   = val('sig_name');
+  const sigTitle  = val('sig_title');
+  const purpose   = val('purpose');
+  const effDate   = val('eff_date');
+
+  const regnoClause = regno
+    ? ` registered with ${regAuth||'the company registry'} under number ${regno},`
+    : '';
+  const dateStr = effDate
+    ? new Date(effDate).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})
+    : 'the date of last signature';
+
+  const N={font:'Arial',size:20};
+  const B={font:'Arial',size:20,bold:true};
+  const S={font:'Arial',size:18};
+
+  const br = () => new Paragraph({children:[]});
+  const h = t => new Paragraph({
+    children:[new TextRun({text:t,...B,size:22})],
+    spacing:{before:240,after:120}
+  });
+  const para = runs => new Paragraph({
+    children:Array.isArray(runs)?runs:[new TextRun({text:runs,...N})],
+    spacing:{before:60,after:60},alignment:AlignmentType.JUSTIFIED
+  });
+  const sub = text => new Paragraph({
+    numbering:{reference:'nda-sub',level:0},
+    children:[new TextRun({text,...N})],
+    spacing:{before:40,after:40},alignment:AlignmentType.JUSTIFIED
+  });
+  const blt = (text,lvl=1) => new Paragraph({
+    numbering:{reference:'nda-bullets',level:lvl},
+    children:[new TextRun({text,...N})],
+    spacing:{before:40,after:40},alignment:AlignmentType.JUSTIFIED
+  });
+
+  const border={style:BorderStyle.SINGLE,size:4,color:'2E4A6E'};
+  const sigTable = new Table({
+    width:{size:9026,type:WidthType.DXA},
+    columnWidths:[4513,4513],
+    rows:[new TableRow({children:[
+      new TableCell({
+        width:{size:4513,type:WidthType.DXA},
+        borders:{top:border,bottom:border,left:border,right:border},
+        margins:{top:120,bottom:120,left:160,right:160},
+        children:[
+          new Paragraph({children:[new TextRun({text:'DeltaQuad B.V.',...B})]}),
+          new Paragraph({children:[new TextRun({text:'By: R.K. Quatfass',...N})]}),
+          new Paragraph({children:[new TextRun({text:'Title: Operations Manager',...N})]}),
+          new Paragraph({children:[new TextRun({text:'Date: _______________',...N})]}),
+        ]
+      }),
+      new TableCell({
+        width:{size:4513,type:WidthType.DXA},
+        borders:{top:border,bottom:border,left:border,right:border},
+        margins:{top:120,bottom:120,left:160,right:160},
+        children:[
+          new Paragraph({children:[new TextRun({text:cpName,...B})]}),
+          new Paragraph({children:[new TextRun({text:`By: ${sigName}`,...N})]}),
+          new Paragraph({children:[new TextRun({text:`Title: ${sigTitle}`,...N})]}),
+          new Paragraph({children:[new TextRun({text:'Date: _______________',...N})]}),
+        ]
+      }),
+    ]})]
+  });
+
+  const art36Para = art36 ? [sub(
+    'If a receiving Party develops new proprietary information (such as software or product innovation) using Confidential Information received from the disclosing Party, the Parties shall in good faith agree on the ownership and use of such new proprietary information. The disclosing Party shall not be allowed to use such proprietary information outside the Purpose without the prior written consent of the receiving Party.'
+  )] : [];
+
+  const children = [
+    new Paragraph({children:[new TextRun({text:'MUTUAL NONDISCLOSURE AGREEMENT',font:'Arial',size:28,bold:true})],alignment:AlignmentType.CENTER,spacing:{before:240,after:240}}),
+    para([new TextRun({text:'THIS AGREEMENT',...B}),new TextRun({text:' is executed by and between',...N})]),
+    br(),
+    para([new TextRun({text:'DeltaQuad B.V.',...B}),new TextRun({text:' with its registered address at Industrieweg 3, 1115 AD, Duivendrecht, the Netherlands, registered with the Dutch Chamber of Commerce ("',...N}),new TextRun({text:'DCoC',...B}),new TextRun({text:'") under number 51835193, duly represented by its proxy, authorized representative, operations manager R.K Quatfass;',...N})]),
+    br(),para('and'),br(),
+    para([new TextRun({text:cpName,...B}),new TextRun({text:`, with its registered address at ${cpAddr},${regnoClause} duly represented by its ${sigTitle.toLowerCase()} ${sigName};`,...N})]),
+    br(),para('each a "Party" and collectively the "Parties"'),br(),
+    h('WHEREAS'),
+    blt(`In connection with a potential business relationship and/or a government funded program, the Parties wish to exchange certain confidential information related to: ${purpose} ("Purpose");`,0),
+    blt('The information and data to be disclosed or exchanged is proprietary, confidential, subject to patents or patent applications, or constitutes trade secrets, and the Parties desire to protect such information and data by entering into this mutual non-disclosure agreement ("NDA").',0),
+    br(),h('HAVE AGREED AS FOLLOWS:'),br(),
+    h('1.  CONFIDENTIAL INFORMATION'),
+    sub('For the purpose of this NDA, "Confidential Information" means confidential and proprietary information in the broadest sense, including without limitation, technical and business information that has been designated as confidential or of which the receiving Party should reasonably be aware of the confidential nature, and that is provided by a Party to the other Party or made accessible to the other Party before or after the date of this NDA for the Purpose. Confidential Information may be disclosed in various forms, including electronic, written, graphic, verbal information, and material samples, applicable to the exchange including, without limitation, designs, prototypes, mechanisms, drawings, specifications, testing, manufacturing, business and financial information.'),
+    sub('Confidential Information shall not include, and the obligations of this NDA shall not pertain to:'),
+    blt('Information that, at the time of disclosure, was available to the public generally or thereafter becomes available to the public generally through no act or failure to act on the part of the receiving Party;'),
+    blt('Information that was known to or had been independently developed by the receiving Party at the time of the disclosure;'),
+    blt('Information disclosed to the receiving Party by a third party having legal right to disclose such information; and'),
+    blt('Information disclosed with prior written approval of the disclosing Party.'),
+    br(),h('2.  HANDLING OF INFORMATION'),
+    sub('The receiving Party agrees that it shall:'),
+    blt('keep the Confidential Information confidential and ensure its proper and secure storage on its own systems and in its own usual place of business;'),
+    blt('treat the Confidential Information in accordance with its obligations under the General Data Protection Regulation;'),
+    blt('make copies of the Confidential Information and/or store or send Confidential Information outside its own systems or usual place of business only to the extent strictly necessary for the Purpose;'),
+    blt('Limit access to Confidential Information to such of its employees reasonably requiring it for the purpose of this NDA and who are obligated to treat it as confidential and in the same manner as provided herein with regard to nonuse and nondisclosure; and'),
+    blt('subject to the provisions of clause 3 of this NDA, not to disclose, publish or communicate the Confidential Information to a third party without the prior written consent of the disclosing Party;'),
+    blt("at the written request of the disclosing Party or upon termination of this NDA (whichever is the earlier), at the disclosing Party's option, to return the Confidential Information and any copies thereof in whole or in part to the disclosing Party or to confirm in writing to the disclosing Party that, except to the extent required by law or regulation, all copies thereof in whole or in part have been destroyed;"),
+    blt("Not remove the proprietary marking from any of the disclosing Party's Confidential Information."),
+    sub('A receiving Party, upon discovery of any unauthorized use or disclosures, shall immediately notify the disclosing Party in writing and endeavor to prevent any further unauthorized use or disclosure.'),
+    br(),h('3.  DISCLOSURE AND USE'),
+    sub('Disclosures shall be made only to the authorized personnel of a receiving Party.'),
+    sub('The Confidential Information will wholly and exclusively be used for the Purpose and any part of the Confidential Information will not be used for any other purpose (including competitive or commercial purposes). The Confidential Information will further be disclosed only to individuals within the receiving Party\'s organization on a "need to know" basis.'),
+    sub("A Party receiving Confidential Information from the other Party shall make no commercial use for itself or on behalf of others of such Confidential Information outside the Purpose, in whole or in part, without the prior written consent of the disclosing Party."),
+    sub("Subject to the limited rights to use the Confidential Information as set out in the NDA, nothing in the (execution of this) NDA may be interpreted as granting the receiving Party any right, license, title or interest in or to the Confidential Information or intellectual property rights (including without limitation any patent, trademark, copyright) of the disclosing Party or the granting of any license to use such Confidential Information or intellectual property rights of the disclosing Party, to sell, copy or develop further such rights. The receiving Party agrees that all documents and other materials containing the Confidential Information or parts thereof and copies thereof are and remain the property of the disclosing Party at all times."),
+    sub("None of the Confidential Information which may be disclosed or exchanged by the Parties shall constitute any representation, warranty, assurance, guarantee or inducement by either Party to the other of any kind whatsoever other than as set forth herein to accomplish the purpose of this NDA."),
+    ...art36Para,
+    br(),h('4.  TERM'),
+    sub(`Subject to paragraph 4.2, the Parties may continue to provide Confidential Information for the term of this NDA. The term of this NDA shall be five (5) years from the effective date, which shall be ${dateStr}. This period of disclosure may be extended by mutual agreement through an amendment to this NDA. This NDA may be terminated by either party upon thirty (30) days written notice.`),
+    sub('The obligations under this NDA shall continue to apply to the Parties for a period of three (3) years from the termination date of this NDA.'),
+    sub("If the Parties would enter into an agreement for the Purpose as contemplated in this NDA without agreeing to new confidentiality obligations, the rights and obligations in this NDA will apply mutatis mutandis to such agreement and the definition of 'Purpose' in this NDA will be replaced by 'performance of the agreement' irrespective of any 'entire agreement clause' in the agreement. In this situation, this NDA will become part of the agreement and the choice of law and court in the agreement will replace clause 9 of this NDA. The term of this NDA will be the same as the term of the agreement and this NDA can only be terminated under the same conditions as the agreement. Furthermore, the Parties acknowledge that contrary to clause 3.5 of this NDA, Confidential Information disclosed under the agreement can be agreed or intended to constitute a representation, warranty, assurance, guarantee or inducement. Save for the changes in this clause, all terms and conditions in this NDA (including but not limited to clause 4.2 of this NDA) will continue to be in force."),
+    br(),h('5.  RELATIONSHIP OF PARTIES'),
+    sub('Nothing in this NDA shall grant to either Party the right to make commitments of any kind for or on behalf of the other party. This NDA shall not constitute an agency, joint venture or partnership between the parties.'),
+    sub('The Parties acknowledge that by entering into and performing this NDA, no obligation arises for either of them to execute any further agreement in line with the Purpose.'),
+    br(),h('6.  MUTUAL DISCLAIMERS'),
+    sub('Neither Party shall be liable to the other for any cost, expense, or risk of liability arising out of efforts of the other Party in connection with performance of this NDA.'),
+    sub("Each Party hereto understands that the other may currently or in the future be developing proprietary information internally, or receiving proprietary information in confidence from other Parties that may be similar to the disclosing Party's information. Accordingly, subject to Section 3 of this NDA, nothing in this NDA shall be construed as a representation or inference that either Party will not develop products, for itself or for others that compete with the products, systems or methods contemplated by the disclosing Party's Confidential Information."),
+    br(),h('7.  AFFILIATES'),
+    para("Either Party shall have the right to disclose the Confidential Information it receives to one or more of its Affiliates provided that such entity agrees that the rights, obligations and duties described in this NDA shall bind such Affiliate. Affiliates shall mean the party's personnel, and any business entity controlling, under common control, or controlled by the Party. Any breach of this NDA by an Affiliate will be attributed to the relevant Party."),
+    br(),h('8.  VARIOUS'),
+    sub('The rights and obligations under this NDA may not be transferred or assigned without the prior written consent of the other Party.'),
+    sub('The invalidity or unenforceability of any term or right arising out of this NDA shall not in any way affect the remaining terms or rights. Any invalid or unenforceable term in this NDA shall be replaced by the Parties in good faith by a valid term with the same effect.'),
+    br(),h('9.  GOVERNING LAW'),
+    para('This NDA is made under and shall be construed in accordance with the laws of the Netherlands. Any dispute arising under this NDA shall be brought in a court located in Amsterdam.'),
+    br(),br(),
+    para([new TextRun({text:'IN WITNESS WHEREOF,',...B}),new TextRun({text:' the Parties hereto have caused this NDA to be duly executed and in effect on the day signed by both Parties.',...N})]),
+    br(),
+    sigTable,
+    br(),
+    new Paragraph({children:[new TextRun({text:'Mutual Nondisclosure Agreement - version 03-2025',font:'Arial',size:16,color:'888888'})]}),
+  ];
+
+  const doc2 = new Document({
+    numbering:{config:[
+      {reference:'nda-bullets',levels:[
+        {level:0,format:LevelFormat.BULLET,text:'-',alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:360,hanging:180}}}},
+        {level:1,format:LevelFormat.BULLET,text:'•',alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:720,hanging:360}}}},
+      ]},
+      {reference:'nda-sub',levels:[
+        {level:0,format:LevelFormat.BULLET,text:'-',alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:360,hanging:180}}}},
+      ]},
+    ]},
+    styles:{default:{document:{run:{font:'Arial',size:20}}}},
+    sections:[{
+      properties:{page:{size:{width:11906,height:16838},margin:{top:1440,right:1440,bottom:1440,left:1440}}},
+      children
+    }]
+  });
+
+  return new Blob([docx.Packer.toBuffer(doc2)],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+
+function reset() {
+  document.querySelectorAll('input,textarea').forEach(el=>{
+    if(el.type==='checkbox') el.checked=false;
+    else el.value='';
+  });
+  selCountry=null; art36=false; docxBlob=null;
+  document.getElementById('kvk_result') && (document.getElementById('kvk_result').className='kvk-result');
+  document.getElementById('reg_result').className='reg-result';
+  document.getElementById('art36_card').classList.remove('active');
+  document.getElementById('jur_hint').textContent='';
+  goStep(1);
+}
+</script>
+</body>
+</html>
