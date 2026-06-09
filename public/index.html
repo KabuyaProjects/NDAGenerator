@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DeltaQuad NDA Generator</title>
-<script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -483,7 +483,10 @@ async function searchKvK(q) {
   }
 
   const isOC = data.source === 'opencorporates';
-  const sourceLabel = isOC
+  const isGLEIF = data.source === 'gleif';
+  const sourceLabel = isGLEIF
+    ? `<span style="font-size:.72rem;opacity:.7;margin-left:.5rem">via GLEIF (KvK key pending)</span>`
+    : isOC
     ? `<span style="font-size:.72rem;opacity:.7;margin-left:.5rem">via OpenCorporates (KvK key pending)</span>`
     : `<span style="font-size:.72rem;opacity:.7;margin-left:.5rem">via KvK</span>`;
 
