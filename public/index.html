@@ -29,6 +29,7 @@ header span{font-size:.8rem;opacity:.6;margin-left:auto}
 .step-label{font-size:.78rem;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .step-item.active .step-label{color:var(--text);font-weight:500}
 .step-item.done .step-label{color:var(--success)}
+.step-item.done:hover .step-num{background:var(--success-light);border-color:var(--success);color:var(--success);transform:scale(1.1);transition:all .15s}
 .card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);padding:1.75rem;margin-bottom:1.25rem}
 .card-title{font-size:1rem;font-weight:600;color:var(--text);margin-bottom:1.25rem;padding-bottom:.75rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
 .card-title-icon{width:28px;height:28px;background:var(--accent-light);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:.9rem;flex-shrink:0}
@@ -233,17 +234,9 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
     </div>
 
     <div class="card">
-      <div class="card-title"><div class="card-title-icon">✍️</div>Authorized signatory (counterparty)</div>
-      <div class="form-grid">
-        <div class="field span2">
-          <label>Full name <span class="req">*</span></label>
-          <input type="text" id="sig_name" placeholder="e.g. Jan de Vries">
-        </div>
-        <div class="field span2">
-          <label>Title / role <span class="req">*</span></label>
-          <input type="text" id="sig_title" placeholder="e.g. Managing Director">
-        </div>
-      </div>
+      <div class="card-title"><div class="card-title-icon">✍️</div>Authorized signatories (counterparty)</div>
+      <div id="signatories_list"></div>
+      <button class="btn btn-ghost" style="margin-top:.75rem" onclick="addSignatory()">+ Add signatory</button>
     </div>
     <div class="btn-row">
       <button class="btn btn-ghost" onclick="goStep(1)">← Back</button>
@@ -345,8 +338,8 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
       <div class="card-title" style="font-size:.875rem">📌 Next steps</div>
       <ol style="padding-left:1.2rem;display:flex;flex-direction:column;gap:.5rem;line-height:1.6">
         <li>Download the document and check all pre-filled fields.</li>
-        <li>Share with counterparty forr review.</li>
-        <li>Share NDA with comments with legal for review or for preparing in docusign if no comments</li>
+        <li>Share with counterparty for review.</li>
+        <li>Share NDA with comments with legal for review or for preparing in DocuSign if no comments.</li>
       </ol>
     </div>
   </div>
@@ -395,6 +388,39 @@ const COUNTRIES = [
 let selCountry = null;
 let art36 = false;
 let docxBlob = null;
+let signatories = [{name:'',title:''}];
+
+// ── Signatory management ──
+function renderSignatories() {
+  const list = document.getElementById('signatories_list');
+  if (!list) return;
+  list.innerHTML = signatories.map((s,i) => `
+    <div style="border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:.75rem;position:relative">
+      ${signatories.length>1?`<button onclick="removeSig(${i})" style="position:absolute;top:.6rem;right:.75rem;background:none;border:none;cursor:pointer;font-size:1rem;color:var(--text3)" title="Remove">✕</button>`:''}
+      <div style="font-size:.75rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.6rem">Signatory ${signatories.length>1?i+1:''}</div>
+      <div class="form-grid">
+        <div class="field span2">
+          <label>Full name <span class="req">*</span></label>
+          <input type="text" value="${s.name}" placeholder="e.g. Jan de Vries" oninput="signatories[${i}].name=this.value" id="sig_name_${i}">
+        </div>
+        <div class="field span2">
+          <label>Title / role <span class="req">*</span></label>
+          <input type="text" value="${s.title}" placeholder="e.g. Managing Director" oninput="signatories[${i}].title=this.value" id="sig_title_${i}">
+        </div>
+      </div>
+    </div>`).join('');
+}
+function addSignatory() {
+  signatories.push({name:'',title:''});
+  renderSignatories();
+  document.getElementById(`sig_name_${signatories.length-1}`)?.focus();
+}
+function removeSig(i) {
+  signatories.splice(i,1);
+  renderSignatories();
+}
+// Render on load
+document.addEventListener('DOMContentLoaded', renderSignatories);
 
 // ── Country search ──
 function filterCountries() {
@@ -588,7 +614,12 @@ function goStep(n) {
     highlight(errs); if(errs.length) return;
   }
   if (n===3) {
-    const errs=['cp_name','cp_street','cp_postal','cp_city','cp_country','sig_name','sig_title'].filter(id=>!val(id));
+    const errs=['cp_name','cp_street','cp_postal','cp_city','cp_country'].filter(id=>!val(id));
+    // Check at least one signatory has name+title
+    const firstEmpty = signatories.findIndex(s=>!s.name.trim()||!s.title.trim());
+    if (firstEmpty>=0) {
+      errs.push(`sig_name_${firstEmpty}`);
+    }
     highlight(errs); if(errs.length) return;
   }
   if (n===4) {
@@ -602,8 +633,8 @@ function goStep(n) {
     const sn=document.getElementById(`sn${i}`);
     if(si){
       si.className='step-item';
-      if(i<n){si.classList.add('done');sn.innerHTML='✓';}
-      else if(i===n){si.classList.add('active');sn.textContent=i;}
+      if(i<n){si.classList.add('done');si.style.cursor='pointer';si.onclick=()=>goStep(i);sn.innerHTML='✓';}
+      else{si.style.cursor='';si.onclick=null;sn.textContent=i===n?i:i;}      else if(i===n){si.classList.add('active');sn.textContent=i;}
       else{sn.textContent=i;}
     }
   }
@@ -623,7 +654,7 @@ function populateReview() {
   document.getElementById('rev_cp_addr').textContent = `${val('cp_street')}, ${val('cp_postal')} ${val('cp_city')}, ${val('cp_country')}`;
   const regno = val('cp_regno');
   document.getElementById('rev_regno').textContent = regno ? `${regno}${val('cp_reg_auth')?' ('+val('cp_reg_auth')+')':''}` : 'Not provided';
-  document.getElementById('rev_sig').textContent = `${val('sig_name')} — ${val('sig_title')}`;
+  document.getElementById('rev_sig').textContent = signatories.map(s=>`${s.name} — ${s.title}`).join(', ');
   document.getElementById('rev_purpose').textContent = val('purpose');
   const badge = document.getElementById('rev_art36');
   if (art36) { badge.className='art36-badge inc'; badge.textContent='✓ Included (supplier NDA)'; }
@@ -671,10 +702,12 @@ async function buildDocx(docx) {
   const cpAddr    = `${cpStreet}, ${cpPostal}, ${cpCity}, ${cpCountry}`;
   const regno     = val('cp_regno');
   const regAuth   = val('cp_reg_auth');
-  const sigName   = val('sig_name');
-  const sigTitle  = val('sig_title');
   const purpose   = val('purpose');
   const effDate   = val('eff_date');
+
+  // Signatories
+  const sigs = signatories.filter(s=>s.name.trim());
+  const sigLine = sigs.map(s=>`its ${s.title.toLowerCase()} ${s.name}`).join(' and ');
 
   const regnoClause = regno
     ? ` registered with ${regAuth||'the company registry'} under number ${regno},`
@@ -685,56 +718,71 @@ async function buildDocx(docx) {
 
   const N={font:'Arial',size:20};
   const B={font:'Arial',size:20,bold:true};
-  const S={font:'Arial',size:18};
 
-  const br = () => new Paragraph({children:[]});
-  const h = t => new Paragraph({
-    children:[new TextRun({text:t,...B,size:22})],
-    spacing:{before:240,after:120}
-  });
+  const br = () => new Paragraph({children:[new TextRun({text:'',font:'Arial',size:20})],spacing:{before:0,after:0}});
+
   const para = runs => new Paragraph({
     children:Array.isArray(runs)?runs:[new TextRun({text:runs,...N})],
+    spacing:{before:80,after:80},alignment:AlignmentType.JUSTIFIED
+  });
+
+  // Article heading: numId=nda-articles, ilvl=0 → "1." bold (matches original abstractNum3 level0)
+  const art = text => new Paragraph({
+    numbering:{reference:'nda-articles',level:0},
+    children:[new TextRun({text,...B})],
+    spacing:{before:200,after:80},
+    alignment:AlignmentType.LEFT
+  });
+
+  // Sub-article: numId=nda-articles, ilvl=1 → "1.1." normal (matches abstractNum3 level1)
+  const sub = text => new Paragraph({
+    numbering:{reference:'nda-articles',level:1},
+    children:[new TextRun({text,...N})],
     spacing:{before:60,after:60},alignment:AlignmentType.JUSTIFIED
   });
-  const sub = text => new Paragraph({
-    numbering:{reference:'nda-sub',level:0},
+
+  // Sub-sub item: numId=nda-articles, ilvl=2 → "1.1.1." normal (matches abstractNum3 level2)
+  const blt = text => new Paragraph({
+    numbering:{reference:'nda-articles',level:2},
     children:[new TextRun({text,...N})],
     spacing:{before:40,after:40},alignment:AlignmentType.JUSTIFIED
   });
-  const blt = (text,lvl=1) => new Paragraph({
-    numbering:{reference:'nda-bullets',level:lvl},
+
+  // Whereas bullets: separate list, dash style (matches numId=3 in original)
+  const whr = text => new Paragraph({
+    numbering:{reference:'nda-whereas',level:0},
     children:[new TextRun({text,...N})],
-    spacing:{before:40,after:40},alignment:AlignmentType.JUSTIFIED
+    spacing:{before:60,after:60},alignment:AlignmentType.JUSTIFIED
   });
 
   const border={style:BorderStyle.SINGLE,size:4,color:'2E4A6E'};
+
+  // Build signature table rows — one row per signatory pair (DeltaQuad left, counterparty right)
+  // First row always has company headers; extra rows for additional signatories
+  const maxRows = Math.max(1, sigs.length);
+  const mkCell = (lines) => new TableCell({
+    width:{size:4513,type:WidthType.DXA},
+    borders:{top:border,bottom:border,left:border,right:border},
+    margins:{top:120,bottom:120,left:160,right:160},
+    children: lines.map((l,i) => new Paragraph({children:[new TextRun({text:l,font:'Arial',size:20,bold:i===0})]}))
+  });
+
+  const sigRows = [];
+  for (let i=0;i<maxRows;i++){
+    const dqLines = i===0
+      ? ['DeltaQuad B.V.','By: R.K. Quatfass','Title: Operations Manager','Date: _______________']
+      : ['','By: _______________','Title: _______________','Date: _______________'];
+    const sig = sigs[i];
+    const cpLines = i===0
+      ? [cpName, `By: ${sig?.name||''}`, `Title: ${sig?.title||''}`, 'Date: _______________']
+      : ['', `By: ${sig?.name||''}`, `Title: ${sig?.title||''}`, 'Date: _______________'];
+    sigRows.push(new TableRow({children:[mkCell(dqLines), mkCell(cpLines)]}));
+  }
+
   const sigTable = new Table({
     width:{size:9026,type:WidthType.DXA},
     columnWidths:[4513,4513],
-    rows:[new TableRow({children:[
-      new TableCell({
-        width:{size:4513,type:WidthType.DXA},
-        borders:{top:border,bottom:border,left:border,right:border},
-        margins:{top:120,bottom:120,left:160,right:160},
-        children:[
-          new Paragraph({children:[new TextRun({text:'DeltaQuad B.V.',...B})]}),
-          new Paragraph({children:[new TextRun({text:'By: R.K. Quatfass',...N})]}),
-          new Paragraph({children:[new TextRun({text:'Title: Operations Manager',...N})]}),
-          new Paragraph({children:[new TextRun({text:'Date: _______________',...N})]}),
-        ]
-      }),
-      new TableCell({
-        width:{size:4513,type:WidthType.DXA},
-        borders:{top:border,bottom:border,left:border,right:border},
-        margins:{top:120,bottom:120,left:160,right:160},
-        children:[
-          new Paragraph({children:[new TextRun({text:cpName,...B})]}),
-          new Paragraph({children:[new TextRun({text:`By: ${sigName}`,...N})]}),
-          new Paragraph({children:[new TextRun({text:`Title: ${sigTitle}`,...N})]}),
-          new Paragraph({children:[new TextRun({text:'Date: _______________',...N})]}),
-        ]
-      }),
-    ]})]
+    rows: sigRows
   });
 
   const art36Para = art36 ? [sub(
@@ -747,20 +795,20 @@ async function buildDocx(docx) {
     br(),
     para([new TextRun({text:'DeltaQuad B.V.',...B}),new TextRun({text:' with its registered address at Industrieweg 3, 1115 AD, Duivendrecht, the Netherlands, registered with the Dutch Chamber of Commerce ("',...N}),new TextRun({text:'DCoC',...B}),new TextRun({text:'") under number 51835193, duly represented by its proxy, authorized representative, operations manager R.K Quatfass;',...N})]),
     br(),para('and'),br(),
-    para([new TextRun({text:cpName,...B}),new TextRun({text:`, with its registered address at ${cpAddr},${regnoClause} duly represented by its ${sigTitle.toLowerCase()} ${sigName};`,...N})]),
+    para([new TextRun({text:cpName,...B}),new TextRun({text:`, with its registered address at ${cpAddr},${regnoClause} duly represented by ${sigLine};`,...N})]),
     br(),para('each a "Party" and collectively the "Parties"'),br(),
-    h('WHEREAS'),
-    blt(`In connection with a potential business relationship and/or a government funded program, the Parties wish to exchange certain confidential information related to: ${purpose} ("Purpose");`,0),
-    blt('The information and data to be disclosed or exchanged is proprietary, confidential, subject to patents or patent applications, or constitutes trade secrets, and the Parties desire to protect such information and data by entering into this mutual non-disclosure agreement ("NDA").',0),
-    br(),h('HAVE AGREED AS FOLLOWS:'),br(),
-    h('1.  CONFIDENTIAL INFORMATION'),
+    para([new TextRun({text:'WHEREAS',...B})]),
+    whr(`In connection with a potential business relationship and/or a government funded program, the Parties wish to exchange certain confidential information related to: ${purpose} ("Purpose");`),
+    whr('The information and data to be disclosed or exchanged is proprietary, confidential, subject to patents or patent applications, or constitutes trade secrets, and the Parties desire to protect such information and data by entering into this mutual non-disclosure agreement ("NDA").'),
+    br(),para([new TextRun({text:'HAVE AGREED AS FOLLOWS:',...B})]),br(),
+    art('CONFIDENTIAL INFORMATION'),
     sub('For the purpose of this NDA, "Confidential Information" means confidential and proprietary information in the broadest sense, including without limitation, technical and business information that has been designated as confidential or of which the receiving Party should reasonably be aware of the confidential nature, and that is provided by a Party to the other Party or made accessible to the other Party before or after the date of this NDA for the Purpose. Confidential Information may be disclosed in various forms, including electronic, written, graphic, verbal information, and material samples, applicable to the exchange including, without limitation, designs, prototypes, mechanisms, drawings, specifications, testing, manufacturing, business and financial information.'),
     sub('Confidential Information shall not include, and the obligations of this NDA shall not pertain to:'),
     blt('Information that, at the time of disclosure, was available to the public generally or thereafter becomes available to the public generally through no act or failure to act on the part of the receiving Party;'),
     blt('Information that was known to or had been independently developed by the receiving Party at the time of the disclosure;'),
     blt('Information disclosed to the receiving Party by a third party having legal right to disclose such information; and'),
     blt('Information disclosed with prior written approval of the disclosing Party.'),
-    br(),h('2.  HANDLING OF INFORMATION'),
+    art('HANDLING OF INFORMATION'),
     sub('The receiving Party agrees that it shall:'),
     blt('keep the Confidential Information confidential and ensure its proper and secure storage on its own systems and in its own usual place of business;'),
     blt('treat the Confidential Information in accordance with its obligations under the General Data Protection Regulation;'),
@@ -770,29 +818,29 @@ async function buildDocx(docx) {
     blt("at the written request of the disclosing Party or upon termination of this NDA (whichever is the earlier), at the disclosing Party's option, to return the Confidential Information and any copies thereof in whole or in part to the disclosing Party or to confirm in writing to the disclosing Party that, except to the extent required by law or regulation, all copies thereof in whole or in part have been destroyed;"),
     blt("Not remove the proprietary marking from any of the disclosing Party's Confidential Information."),
     sub('A receiving Party, upon discovery of any unauthorized use or disclosures, shall immediately notify the disclosing Party in writing and endeavor to prevent any further unauthorized use or disclosure.'),
-    br(),h('3.  DISCLOSURE AND USE'),
+    art('DISCLOSURE AND USE'),
     sub('Disclosures shall be made only to the authorized personnel of a receiving Party.'),
     sub('The Confidential Information will wholly and exclusively be used for the Purpose and any part of the Confidential Information will not be used for any other purpose (including competitive or commercial purposes). The Confidential Information will further be disclosed only to individuals within the receiving Party\'s organization on a "need to know" basis.'),
     sub("A Party receiving Confidential Information from the other Party shall make no commercial use for itself or on behalf of others of such Confidential Information outside the Purpose, in whole or in part, without the prior written consent of the disclosing Party."),
     sub("Subject to the limited rights to use the Confidential Information as set out in the NDA, nothing in the (execution of this) NDA may be interpreted as granting the receiving Party any right, license, title or interest in or to the Confidential Information or intellectual property rights (including without limitation any patent, trademark, copyright) of the disclosing Party or the granting of any license to use such Confidential Information or intellectual property rights of the disclosing Party, to sell, copy or develop further such rights. The receiving Party agrees that all documents and other materials containing the Confidential Information or parts thereof and copies thereof are and remain the property of the disclosing Party at all times."),
     sub("None of the Confidential Information which may be disclosed or exchanged by the Parties shall constitute any representation, warranty, assurance, guarantee or inducement by either Party to the other of any kind whatsoever other than as set forth herein to accomplish the purpose of this NDA."),
     ...art36Para,
-    br(),h('4.  TERM'),
+    art('TERM'),
     sub(`Subject to paragraph 4.2, the Parties may continue to provide Confidential Information for the term of this NDA. The term of this NDA shall be five (5) years from the effective date, which shall be ${dateStr}. This period of disclosure may be extended by mutual agreement through an amendment to this NDA. This NDA may be terminated by either party upon thirty (30) days written notice.`),
     sub('The obligations under this NDA shall continue to apply to the Parties for a period of three (3) years from the termination date of this NDA.'),
     sub("If the Parties would enter into an agreement for the Purpose as contemplated in this NDA without agreeing to new confidentiality obligations, the rights and obligations in this NDA will apply mutatis mutandis to such agreement and the definition of 'Purpose' in this NDA will be replaced by 'performance of the agreement' irrespective of any 'entire agreement clause' in the agreement. In this situation, this NDA will become part of the agreement and the choice of law and court in the agreement will replace clause 9 of this NDA. The term of this NDA will be the same as the term of the agreement and this NDA can only be terminated under the same conditions as the agreement. Furthermore, the Parties acknowledge that contrary to clause 3.5 of this NDA, Confidential Information disclosed under the agreement can be agreed or intended to constitute a representation, warranty, assurance, guarantee or inducement. Save for the changes in this clause, all terms and conditions in this NDA (including but not limited to clause 4.2 of this NDA) will continue to be in force."),
-    br(),h('5.  RELATIONSHIP OF PARTIES'),
+    art('RELATIONSHIP OF PARTIES'),
     sub('Nothing in this NDA shall grant to either Party the right to make commitments of any kind for or on behalf of the other party. This NDA shall not constitute an agency, joint venture or partnership between the parties.'),
     sub('The Parties acknowledge that by entering into and performing this NDA, no obligation arises for either of them to execute any further agreement in line with the Purpose.'),
-    br(),h('6.  MUTUAL DISCLAIMERS'),
+    art('MUTUAL DISCLAIMERS'),
     sub('Neither Party shall be liable to the other for any cost, expense, or risk of liability arising out of efforts of the other Party in connection with performance of this NDA.'),
     sub("Each Party hereto understands that the other may currently or in the future be developing proprietary information internally, or receiving proprietary information in confidence from other Parties that may be similar to the disclosing Party's information. Accordingly, subject to Section 3 of this NDA, nothing in this NDA shall be construed as a representation or inference that either Party will not develop products, for itself or for others that compete with the products, systems or methods contemplated by the disclosing Party's Confidential Information."),
-    br(),h('7.  AFFILIATES'),
-    para("Either Party shall have the right to disclose the Confidential Information it receives to one or more of its Affiliates provided that such entity agrees that the rights, obligations and duties described in this NDA shall bind such Affiliate. Affiliates shall mean the party's personnel, and any business entity controlling, under common control, or controlled by the Party. Any breach of this NDA by an Affiliate will be attributed to the relevant Party."),
-    br(),h('8.  VARIOUS'),
+    art('AFFILIATES'),
+    sub("Either Party shall have the right to disclose the Confidential Information it receives to one or more of its Affiliates provided that such entity agrees that the rights, obligations and duties described in this NDA shall bind such Affiliate. Affiliates shall mean the party's personnel, and any business entity controlling, under common control, or controlled by the Party. Any breach of this NDA by an Affiliate will be attributed to the relevant Party."),
+    art('VARIOUS'),
     sub('The rights and obligations under this NDA may not be transferred or assigned without the prior written consent of the other Party.'),
     sub('The invalidity or unenforceability of any term or right arising out of this NDA shall not in any way affect the remaining terms or rights. Any invalid or unenforceable term in this NDA shall be replaced by the Parties in good faith by a valid term with the same effect.'),
-    br(),h('9.  GOVERNING LAW'),
+    art('GOVERNING LAW'),
     para('This NDA is made under and shall be construed in accordance with the laws of the Netherlands. Any dispute arising under this NDA shall be brought in a court located in Amsterdam.'),
     br(),br(),
     para([new TextRun({text:'IN WITNESS WHEREOF,',...B}),new TextRun({text:' the Parties hereto have caused this NDA to be duly executed and in effect on the day signed by both Parties.',...N})]),
@@ -804,12 +852,21 @@ async function buildDocx(docx) {
 
   const doc2 = new Document({
     numbering:{config:[
-      {reference:'nda-bullets',levels:[
-        {level:0,format:LevelFormat.BULLET,text:'-',alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:360,hanging:180}}}},
-        {level:1,format:LevelFormat.BULLET,text:'•',alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:720,hanging:360}}}},
+      {reference:'nda-articles',levels:[
+        // Level 0: "1." bold — article headings (abstractNum3 lvl0: %1. bold, right-aligned num, left 1440 hang 360)
+        {level:0,format:LevelFormat.DECIMAL,text:'%1.',alignment:AlignmentType.LEFT,
+          style:{run:{bold:true,font:'Arial',size:20},paragraph:{indent:{left:720,hanging:360},spacing:{before:200,after:80}}}},
+        // Level 1: "1.1." — sub-articles (abstractNum3 lvl1: %1.%2. normal)
+        {level:1,format:LevelFormat.DECIMAL,text:'%1.%2.',alignment:AlignmentType.LEFT,
+          style:{run:{bold:false,font:'Arial',size:20},paragraph:{indent:{left:1440,hanging:360},spacing:{before:60,after:60}}}},
+        // Level 2: "1.1.1." — sub-sub items (abstractNum3 lvl2: %1.%2.%3. normal)
+        {level:2,format:LevelFormat.DECIMAL,text:'%1.%2.%3.',alignment:AlignmentType.LEFT,
+          style:{run:{bold:false,font:'Arial',size:20},paragraph:{indent:{left:2160,hanging:360},spacing:{before:40,after:40}}}},
       ]},
-      {reference:'nda-sub',levels:[
-        {level:0,format:LevelFormat.BULLET,text:'-',alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:360,hanging:180}}}},
+      {reference:'nda-whereas',levels:[
+        // Whereas bullets: dash, no number
+        {level:0,format:LevelFormat.BULLET,text:'-',alignment:AlignmentType.LEFT,
+          style:{paragraph:{indent:{left:360,hanging:180}}}},
       ]},
     ]},
     styles:{default:{document:{run:{font:'Arial',size:20}}}},
@@ -828,6 +885,8 @@ function reset() {
     else el.value='';
   });
   selCountry=null; art36=false; docxBlob=null;
+  signatories=[{name:'',title:''}];
+  renderSignatories();
   document.getElementById('kvk_result') && (document.getElementById('kvk_result').className='kvk-result');
   document.getElementById('reg_result').className='reg-result';
   document.getElementById('art36_card').classList.remove('active');
