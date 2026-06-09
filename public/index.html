@@ -223,7 +223,7 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
           <input type="text" id="cp_country" placeholder="Country">
         </div>
         <div class="field">
-          <label>Registration number</label>
+          <label>Registration number <span class="req">*</span></label>
           <input type="text" id="cp_regno" placeholder="Company reg / KvK number">
         </div>
         <div class="field">
@@ -614,7 +614,7 @@ function goStep(n) {
     highlight(errs); if(errs.length) return;
   }
   if (n===3) {
-    const errs=['cp_name','cp_street','cp_postal','cp_city','cp_country'].filter(id=>!val(id));
+    const errs=['cp_name','cp_street','cp_postal','cp_city','cp_country','cp_regno'].filter(id=>!val(id));
     // Check at least one signatory has name+title
     const firstEmpty = signatories.findIndex(s=>!s.name.trim()||!s.title.trim());
     if (firstEmpty>=0) {
@@ -755,33 +755,79 @@ async function buildDocx(docx) {
     spacing:{before:60,after:60},alignment:AlignmentType.JUSTIFIED
   });
 
-  const border={style:BorderStyle.SINGLE,size:4,color:'2E4A6E'};
+  // Signature table below
 
   // Build signature table rows — one row per signatory pair (DeltaQuad left, counterparty right)
   // First row always has company headers; extra rows for additional signatories
-  const maxRows = Math.max(1, sigs.length);
-  const mkCell = (lines) => new TableCell({
-    width:{size:4513,type:WidthType.DXA},
-    borders:{top:border,bottom:border,left:border,right:border},
-    margins:{top:120,bottom:120,left:160,right:160},
-    children: lines.map((l,i) => new Paragraph({children:[new TextRun({text:l,font:'Arial',size:20,bold:i===0})]}))
+  // keepProp: keepLines + keepNext so the whole table stays on one page
+  const keepPr = {keepLines:true, keepNext:true};
+  const tabStop = [{type:docx.TabStopType.LEFT, position:883}];
+
+  const blankKept = () => new Paragraph({
+    properties: keepPr,
+    children:[new TextRun({text:'',font:'Arial',size:20})]
+  });
+  const sigLine_ = (label, value, bold=false) => new Paragraph({
+    properties: keepPr,
+    tabStops: tabStop,
+    children:[
+      new TextRun({text:label,font:'Arial',size:20,bold}),
+      new TextRun({text:'\t',font:'Arial',size:20}),
+      new TextRun({text:`: ${value}`,font:'Arial',size:20}),
+    ]
+  });
+  const companyName_ = (name) => new Paragraph({
+    properties: keepPr,
+    children:[new TextRun({text:name,font:'Arial',size:20,bold:true})]
   });
 
+  const mkCell = (name, byVal, titleVal, dateVal='') => new TableCell({
+    width:{size:4513,type:WidthType.DXA},
+    borders:{
+      top:{style:BorderStyle.NONE,size:0,color:'auto'},
+      bottom:{style:BorderStyle.NONE,size:0,color:'auto'},
+      left:{style:BorderStyle.NONE,size:0,color:'auto'},
+      right:{style:BorderStyle.NONE,size:0,color:'auto'},
+    },
+    margins:{top:0,bottom:0,left:0,right:160},
+    children:[
+      companyName_(name),
+      blankKept(), blankKept(), blankKept(),   // 3 blank lines
+      sigLine_('By', byVal),
+      sigLine_('Title', titleVal),
+      sigLine_('Date', dateVal||''),
+    ]
+  });
+
+  const maxRows = Math.max(1, sigs.length);
   const sigRows = [];
   for (let i=0;i<maxRows;i++){
-    const dqLines = i===0
-      ? ['DeltaQuad B.V.','By: R.K. Quatfass','Title: Operations Manager','Date: _______________']
-      : ['','By: _______________','Title: _______________','Date: _______________'];
     const sig = sigs[i];
-    const cpLines = i===0
-      ? [cpName, `By: ${sig?.name||''}`, `Title: ${sig?.title||''}`, 'Date: _______________']
-      : ['', `By: ${sig?.name||''}`, `Title: ${sig?.title||''}`, 'Date: _______________'];
-    sigRows.push(new TableRow({children:[mkCell(dqLines), mkCell(cpLines)]}));
+    const dqName = i===0 ? 'DeltaQuad B.V.' : '';
+    const dqBy   = i===0 ? 'R.K. Quatfass' : '_______________';
+    const dqTitle= i===0 ? 'Operations Manager' : '_______________';
+    const cpBy   = sig?.name  || '';
+    const cpTitle= sig?.title || '';
+    sigRows.push(new TableRow({
+      cantSplit: true,
+      children:[
+        mkCell(dqName, dqBy, dqTitle),
+        mkCell(i===0 ? cpName : '', cpBy, cpTitle),
+      ]
+    }));
   }
 
   const sigTable = new Table({
     width:{size:9026,type:WidthType.DXA},
     columnWidths:[4513,4513],
+    borders:{
+      top:{style:BorderStyle.NONE,size:0,color:'auto'},
+      bottom:{style:BorderStyle.NONE,size:0,color:'auto'},
+      left:{style:BorderStyle.NONE,size:0,color:'auto'},
+      right:{style:BorderStyle.NONE,size:0,color:'auto'},
+      insideH:{style:BorderStyle.NONE,size:0,color:'auto'},
+      insideV:{style:BorderStyle.NONE,size:0,color:'auto'},
+    },
     rows: sigRows
   });
 
@@ -861,7 +907,7 @@ async function buildDocx(docx) {
           style:{run:{bold:false,font:'Arial',size:20},paragraph:{indent:{left:1440,hanging:360},spacing:{before:60,after:60}}}},
         // Level 2: "1.1.1." — sub-sub items (abstractNum3 lvl2: %1.%2.%3. normal)
         {level:2,format:LevelFormat.DECIMAL,text:'%1.%2.%3.',alignment:AlignmentType.LEFT,
-          style:{run:{bold:false,font:'Arial',size:20},paragraph:{indent:{left:2160,hanging:360},spacing:{before:40,after:40}}}},
+          style:{run:{bold:false,font:'Arial',size:20},paragraph:{indent:{left:2520,hanging:720},spacing:{before:40,after:40}}}},
       ]},
       {reference:'nda-whereas',levels:[
         // Whereas bullets: dash, no number
