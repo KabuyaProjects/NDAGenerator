@@ -475,21 +475,26 @@ async function searchRegistry() {
 async function searchKvK(q) {
   const url = `/api/kvk?q=${encodeURIComponent(q)}`;
   const r = await fetch(url);
-  if (!r.ok) throw new Error(`KvK API returned ${r.status}`);
+  if (!r.ok) throw new Error(`Registry lookup returned ${r.status}`);
   const data = await r.json();
 
   if (!data.resultaten || data.resultaten.length === 0) {
-    showReg('warn','⚠️ No results',`No companies found for "${q}" in the KvK registry.`); return;
+    showReg('warn','⚠️ No results',`No companies found for "${q}" in the Dutch registry.`); return;
   }
 
-  let html = `<strong>✅ Found ${data.resultaten.length} result(s) — click to select</strong><div class="reg-companies">`;
+  const isOC = data.source === 'opencorporates';
+  const sourceLabel = isOC
+    ? `<span style="font-size:.72rem;opacity:.7;margin-left:.5rem">via OpenCorporates (KvK key pending)</span>`
+    : `<span style="font-size:.72rem;opacity:.7;margin-left:.5rem">via KvK</span>`;
+
+  let html = `<strong>✅ Found ${data.resultaten.length} result(s) — click to select${sourceLabel}</strong><div class="reg-companies">`;
   data.resultaten.slice(0,5).forEach((co,i) => {
     const addr = co.adres?.binnenlandsAdres
       ? `${co.adres.binnenlandsAdres.straatnaam||''} ${co.adres.binnenlandsAdres.huisnummer||''}, ${co.adres.binnenlandsAdres.postcode||''} ${co.adres.binnenlandsAdres.plaats||''}`
       : '';
     html += `<div class="reg-company" onclick="fillFromKvK(${i})" id="kvk_co_${i}" data-co='${JSON.stringify({name:co.naam,kvk:co.kvkNummer,addr,street:co.adres?.binnenlandsAdres?.straatnaam||'',nr:co.adres?.binnenlandsAdres?.huisnummer||'',postal:co.adres?.binnenlandsAdres?.postcode||'',city:co.adres?.binnenlandsAdres?.plaats||''}).replace(/'/g,"&#39;")}'>
       <div class="reg-company-name">🏢 ${co.naam}</div>
-      <div class="reg-company-meta">KvK ${co.kvkNummer}${addr?' · '+addr:''}</div>
+      <div class="reg-company-meta">Reg# ${co.kvkNummer}${addr?' · '+addr:''}</div>
     </div>`;
   });
   html += '</div>';
