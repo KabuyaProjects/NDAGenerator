@@ -148,15 +148,8 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
 
   <!-- STEP 1: Requester (DeltaQuad colleague) -->
   <div id="page1">
-    <div class="requester-banner">
-      <div class="rb-icon">👤</div>
-      <div>
-        <h3>Who is requesting this NDA?</h3>
-        <p>This information is used to notify legal@deltaquad.com when the NDA is downloaded.</p>
-      </div>
-    </div>
     <div class="card">
-      <div class="card-title"><div class="card-title-icon">🏢</div>DeltaQuad requester details</div>
+      <div class="card-title"><div class="card-title-icon">🏢</div>Who is requesting this NDA?</div>
       <div class="form-grid">
         <div class="field">
           <label>Your first name <span class="req">*</span></label>
@@ -165,11 +158,6 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
         <div class="field">
           <label>Your last name <span class="req">*</span></label>
           <input type="text" id="req_last" placeholder="e.g. van den Berg">
-        </div>
-        <div class="field span2">
-          <label>Your DeltaQuad email <span class="req">*</span></label>
-          <input type="email" id="req_email" placeholder="you@deltaquad.com">
-          <span class="field-hint">A copy of the NDA details will be sent to legal@deltaquad.com mentioning your name.</span>
         </div>
         <div class="field span2">
           <label>Department / team</label>
@@ -331,10 +319,6 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
         <div class="summary-row"><span class="summary-key">Governing law</span><span class="summary-val">Netherlands · Amsterdam courts</span></div>
         <div class="summary-row"><span class="summary-key">Article 3.6</span><span class="summary-val"><span class="art36-badge" id="rev_art36">—</span></span></div>
       </div>
-      <div class="summary-block" style="margin-top:1rem;background:var(--accent-light);border-color:#bae6fd">
-        <h4 style="color:#0c4a6e">📧 Notification</h4>
-        <div class="summary-row"><span class="summary-key" style="color:#0c4a6e">Upon download</span><span class="summary-val" style="color:#0c4a6e" id="rev_notify">legal@deltaquad.com will be notified</span></div>
-      </div>
     </div>
     <div class="btn-row">
       <button class="btn btn-ghost" onclick="goStep(3)">← Back</button>
@@ -351,7 +335,6 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
         <p id="dl_subtitle">Pre-filled and ready for signature.</p>
         <div class="dl-actions">
           <a class="btn btn-success" id="dl_link" href="#" download="DeltaQuad_NDA.docx">⬇ Download NDA (.docx)</a>
-          <a class="btn btn-primary" id="mail_link" href="#">📧 Notify legal (email)</a>
         </div>
         <div style="margin-top:1.25rem">
           <button class="btn btn-ghost" onclick="reset()">↩ Start a new NDA</button>
@@ -362,7 +345,6 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
       <div class="card-title" style="font-size:.875rem">📌 Next steps</div>
       <ol style="padding-left:1.2rem;display:flex;flex-direction:column;gap:.5rem;line-height:1.6">
         <li>Download the document and check all pre-filled fields.</li>
-        <li>Click <strong>Notify legal</strong> to open a pre-filled email to legal@deltaquad.com — send it to formally register the NDA request.</li>
         <li>Have R.K. Quatfass (Operations Manager) countersign for DeltaQuad.</li>
         <li>Send to counterparty for their signature.</li>
         <li>File the fully executed NDA in your contract management system.</li>
@@ -595,7 +577,7 @@ function val(id) { return (document.getElementById(id)?.value||'').trim(); }
 function goStep(n) {
   // Validate per step
   if (n===2) {
-    const errs=['req_first','req_last','req_email'].filter(id=>!val(id));
+    const errs=['req_first','req_last'].filter(id=>!val(id));
     highlight(errs); if(errs.length) return;
   }
   if (n===3) {
@@ -629,7 +611,7 @@ function highlight(ids) {
 
 function populateReview() {
   const reqName = `${val('req_first')} ${val('req_last')}`;
-  document.getElementById('rev_requester').textContent = `${reqName} (${val('req_email')})${val('req_dept')?' · '+val('req_dept'):''}`;
+  document.getElementById('rev_requester').textContent = `${reqName}${val('req_dept')?' · '+val('req_dept'):''}`;
   document.getElementById('rev_cp_name').textContent = val('cp_name');
   document.getElementById('rev_cp_addr').textContent = `${val('cp_street')}, ${val('cp_postal')} ${val('cp_city')}, ${val('cp_country')}`;
   const regno = val('cp_regno');
@@ -659,46 +641,8 @@ async function generateNDA() {
     const dl = document.getElementById('dl_link');
     dl.href = url; dl.download = fn;
 
-    // Build mailto
-    const reqName = `${val('req_first')} ${val('req_last')}`;
-    const reqEmail = val('req_email');
-    const dept = val('req_dept');
-    const cpName = val('cp_name');
-    const purpose = val('purpose');
-    const effDate = val('eff_date') || 'date of last signature';
-    const art36txt = art36 ? 'Yes (supplier NDA)' : 'No';
-    const subject = encodeURIComponent(`NDA Request: DeltaQuad ↔ ${cpName}`);
-    const body = encodeURIComponent(
-`Dear Legal team,
-
-A new mutual NDA has been generated and is ready for your records.
-
-REQUESTER
-  Name:       ${reqName}
-  Email:      ${reqEmail}${dept?'\n  Department: '+dept:''}
-
-COUNTERPARTY
-  Company:    ${cpName}
-  Address:    ${val('cp_street')}, ${val('cp_postal')} ${val('cp_city')}, ${val('cp_country')}
-  Reg. no.:   ${val('cp_regno')||'N/A'} ${val('cp_reg_auth')?'('+val('cp_reg_auth')+')':''}
-  Signatory:  ${val('sig_name')}, ${val('sig_title')}
-
-NDA DETAILS
-  Purpose:    ${purpose}
-  Art. 3.6 (Supplier IP clause): ${art36txt}
-  Effective:  ${effDate}
-  Template:   DeltaQuad Mutual NDA v03-2025
-
-Please file this NDA in the contract management system once both parties have signed.
-
-Kind regards,
-${reqName}
-`);
-    document.getElementById('mail_link').href =
-      `mailto:legal@deltaquad.com?cc=${encodeURIComponent(reqEmail)}&subject=${subject}&body=${body}`;
-
     document.getElementById('dl_subtitle').textContent =
-      `Mutual NDA with ${cpName} — pre-filled and ready for signature.`;
+      `Mutual NDA with ${val('cp_name')} — pre-filled and ready for signature.`;
     goStep(5);
   } catch(e) {
     alert('Error generating document: '+e.message);

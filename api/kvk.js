@@ -44,16 +44,20 @@ module.exports = async function handler(req, res) {
     const resultaten = records.map(rec => {
       const entity = rec.attributes?.entity || {};
       const addr = entity.legalAddress || {};
-      const reg = entity.registeredAs || '';
+      // GLEIF legalName can be a string, {name:...} or {value:...} depending on version
+      const ln = entity.legalName;
+      const naam = (typeof ln === 'string' ? ln : ln?.name || ln?.value) || '—';
+      // Use LEI as the registration identifier (KvK number comes from real KvK API)
+      const reg = rec.attributes?.lei || entity.registeredAs || '';
       return {
-        naam: entity.legalName?.value || '—',
+        naam,
         kvkNummer: reg,
         adres: {
           binnenlandsAdres: {
             straatnaam: (addr.addressLines || [])[0] || '',
             huisnummer: '',
             postcode: addr.postalCode || '',
-            plaats: addr.city || '',
+            plaats: addr.city || addr.locality || '',
           }
         }
       };
