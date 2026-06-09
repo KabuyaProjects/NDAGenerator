@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DeltaQuad NDA Generator</title>
-<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -650,7 +649,11 @@ async function generateNDA() {
   const inner = document.getElementById('gen_btn_inner');
   btn.disabled=true; inner.innerHTML='<span class="spinner"></span> Generating…';
   try {
-    docxBlob = buildDocx();
+    // Load docx library on demand via ESM
+    if (!window._docx) {
+      window._docx = await import('https://esm.sh/docx@8.5.0');
+    }
+    docxBlob = await buildDocx(window._docx);
     const url = URL.createObjectURL(docxBlob);
     const fn = `DeltaQuad_NDA_${val('cp_name').replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toISOString().slice(0,10)}.docx`;
     const dl = document.getElementById('dl_link');
@@ -705,7 +708,7 @@ ${reqName}
   }
 }
 
-function buildDocx() {
+async function buildDocx(docx) {
   const {
     Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
     AlignmentType, WidthType, BorderStyle, LevelFormat
@@ -867,7 +870,7 @@ function buildDocx() {
     }]
   });
 
-  return new Blob([docx.Packer.toBuffer(doc2)],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  return new Blob([await docx.Packer.toBuffer(doc2)],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
 }
 
 function reset() {
