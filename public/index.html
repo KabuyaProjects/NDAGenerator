@@ -191,7 +191,7 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
           <label>Search company name or registration number</label>
           <div class="search-row">
             <input type="text" id="reg_query" placeholder="e.g. Airbus or 12345678" onkeydown="if(event.key==='Enter')searchRegistry()">
-            <button class="btn btn-primary" onclick="searchRegistry()" id="reg_btn"><span id="reg_btn_txt">Search</span></button>
+            <button class="btn btn-primary" onclick="searchRegistry()" id="reg_btn" disabled><span id="reg_btn_txt">Search</span></button>
           </div>
         </div>
       </div>
@@ -425,10 +425,18 @@ function pickCountry(jur) {
   }
   document.getElementById('country_dropdown').style.display='none';
   document.getElementById('reg_result').className='reg-result';
+  document.getElementById('reg_btn').disabled = false;
 }
 
 // ── Registry search (KvK for NL, OpenCorporates for others) ──
 async function searchRegistry() {
+  if (!selCountry) {
+    document.getElementById('country_search').classList.add('error');
+    document.getElementById('country_search').focus();
+    showReg('warn','','<span>Please select a country first to narrow the search.</span>');
+    return;
+  }
+  document.getElementById('country_search').classList.remove('error');
   const q = document.getElementById('reg_query').value.trim();
   if (!q) return;
   const btn = document.getElementById('reg_btn');
@@ -621,8 +629,6 @@ function populateReview() {
   const badge = document.getElementById('rev_art36');
   if (art36) { badge.className='art36-badge inc'; badge.textContent='✓ Included (supplier NDA)'; }
   else { badge.className='art36-badge exc'; badge.textContent='✗ Excluded'; }
-  document.getElementById('rev_notify').textContent =
-    `legal@deltaquad.com will be notified with your name (${val('req_first')} ${val('req_last')}) and NDA details`;
 }
 
 // ── Generate DOCX ──
