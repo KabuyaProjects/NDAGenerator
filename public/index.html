@@ -211,7 +211,11 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
         </div>
         <div class="field span2">
           <label>Country <span class="req">*</span></label>
-          <input type="text" id="cp_country" placeholder="Country">
+          <div class="country-search-wrap">
+            <input type="text" id="cp_country" placeholder="Type to search country…" autocomplete="off"
+              oninput="filterCpCountries()" onfocus="showCpCountries()" onblur="hideCpCountries()">
+            <div class="country-dropdown" id="cp_country_dropdown" style="display:none"></div>
+          </div>
         </div>
         <div class="field">
           <label>Registration number <span class="req">*</span></label>
@@ -429,10 +433,35 @@ function onRegAuthChange() {
 function setRegistryForCountry(jur) {
   const reg = COUNTRY_REGISTRY[jur];
   const el = document.getElementById('cp_reg_auth');
-  if (el && reg) {
-    if (el.tagName === 'SELECT') el.value = reg;
-    else el.value = reg;
-  }
+  if (el && reg) el.value = reg;
+}
+
+// ── Counterparty country searchable dropdown ──
+let cpHideTimer;
+function filterCpCountries() {
+  const q = document.getElementById('cp_country').value.toLowerCase();
+  renderCpCountryList(COUNTRIES.filter(c => c.name.toLowerCase().includes(q)));
+}
+function showCpCountries() {
+  renderCpCountryList(COUNTRIES);
+  document.getElementById('cp_country_dropdown').style.display = '';
+}
+function hideCpCountries() {
+  cpHideTimer = setTimeout(() => { document.getElementById('cp_country_dropdown').style.display = 'none'; }, 200);
+}
+function renderCpCountryList(list) {
+  const dd = document.getElementById('cp_country_dropdown');
+  dd.style.display = '';
+  const cur = document.getElementById('cp_country').value;
+  dd.innerHTML = list.map(c =>
+    `<div class="country-opt${cur===c.name?' selected':''}" onmousedown="pickCpCountry('${c.jur}','${c.name.replace(/'/g,"\\'")}')">${c.flag?`<span class="flag">${c.flag}</span>`:''}${c.name}<span class="jur-code">${c.jur||'—'}</span></div>`
+  ).join('');
+}
+function pickCpCountry(jur, name) {
+  clearTimeout(cpHideTimer);
+  document.getElementById('cp_country').value = name;
+  document.getElementById('cp_country_dropdown').style.display = 'none';
+  setRegistryForCountry(jur);
 }
 let art36 = false;
 let docxBlob = null;
@@ -577,6 +606,7 @@ function fillFromKvK(i) {
   document.getElementById('cp_postal').value = co.postal||'';
   document.getElementById('cp_city').value = co.city||'';
   document.getElementById('cp_country').value = 'The Netherlands';
+  setRegistryForCountry('nl');
   document.getElementById('cp_regno').value = co.kvk||'';
   document.getElementById('cp_reg_auth').value = 'Dutch Chamber of Commerce (KvK)';
 }
@@ -635,6 +665,7 @@ function fillFromOC(el) {
   document.getElementById('cp_postal').value = co.postal||'';
   document.getElementById('cp_city').value = co.city||parts[1]?.trim()||'';
   document.getElementById('cp_country').value = co.country||selCountry?.name||'';
+  if (selCountry?.jur) setRegistryForCountry(selCountry.jur);
   document.getElementById('cp_regno').value = co.regno||'';
   const jurName = COUNTRIES.find(c=>c.jur===co.jur)?.name||co.jur||'';
   document.getElementById('cp_reg_auth').value = `${jurName} Company Registry`;
