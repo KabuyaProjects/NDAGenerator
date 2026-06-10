@@ -6,8 +6,8 @@
 // POST /api/log          → appends a new entry
 // Requires ADMIN_SECRET header for GET (set ADMIN_SECRET in Vercel env vars)
 
-const REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL;
-const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const REDIS_URL   = process.env.KV_REST_API_URL;
+const REDIS_TOKEN = process.env.KV_REST_API_TOKEN;
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'changeme';
 const LIST_KEY = 'nda:log';
 const MAX_ENTRIES = 500;
