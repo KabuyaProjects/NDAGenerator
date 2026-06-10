@@ -175,28 +175,19 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
   <div id="page2" style="display:none">
     <div class="card">
       <div class="card-title"><div class="card-title-icon">🔍</div>Company registry lookup</div>
-      <div class="alert alert-info">
-        <span>ℹ️</span>
-        <div>Search by <strong>company name</strong> or <strong>registration number</strong> across 140+ jurisdictions (OpenCorporates) or directly via the Dutch KvK API. Select the country first to narrow results.</div>
-      </div>
-      <div class="form-grid" style="margin-bottom:.75rem">
-        <div class="field">
-          <label>Country / jurisdiction</label>
-          <div class="country-search-wrap">
-            <input type="text" id="country_search" placeholder="Type to search country…" autocomplete="off" oninput="filterCountries()" onfocus="showCountries()" onblur="hideCountries()">
-            <div class="country-dropdown" id="country_dropdown" style="display:none"></div>
-          </div>
-          <span class="field-hint" id="jur_hint"></span>
-        </div>
-        <div class="field">
-          <label>Search company name or registration number</label>
-          <div class="search-row">
-            <input type="text" id="reg_query" placeholder="e.g. Airbus or 12345678" onkeydown="if(event.key==='Enter')searchRegistry()">
-            <button class="btn btn-primary" onclick="searchRegistry()" id="reg_btn" disabled><span id="reg_btn_txt">Search</span></button>
+      <div style="background:linear-gradient(135deg,#1a2e4a 0%,#2c4f7a 100%);border-radius:8px;padding:1.25rem 1.5rem;color:#fff;display:flex;align-items:center;gap:1rem;">
+        <div style="font-size:1.75rem;flex-shrink:0">🚀</div>
+        <div>
+          <div style="font-weight:700;font-size:.95rem;margin-bottom:.3rem">Upgrade to NDA Generator Pro or Ultimate</div>
+          <div style="font-size:.82rem;opacity:.85">Get access to live company lookup in 140+ jurisdictions worldwide — including the Dutch KvK, UK Companies House, German Handelsregister and more. Auto-fill company details, verify authorized signatories, and speed up your NDA workflow.</div>
+          <div style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
+            <span style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:.2rem .7rem;font-size:.75rem;font-weight:600">🇳🇱 KvK</span>
+            <span style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:.2rem .7rem;font-size:.75rem;font-weight:600">🇬🇧 Companies House</span>
+            <span style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:.2rem .7rem;font-size:.75rem;font-weight:600">🇩🇪 Handelsregister</span>
+            <span style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:.2rem .7rem;font-size:.75rem;font-weight:600">🌍 140+ more</span>
           </div>
         </div>
       </div>
-      <div class="reg-result" id="reg_result"></div>
     </div>
 
     <div class="card">
@@ -679,6 +670,23 @@ async function generateNDA() {
 
     document.getElementById('dl_subtitle').textContent =
       `Mutual NDA with ${val('cp_name')} — pre-filled and ready for signature.`;
+
+    // Log to admin
+    fetch('/api/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requester: `${val('req_first')} ${val('req_last')}`,
+        dept: val('req_dept'),
+        counterparty: val('cp_name'),
+        country: val('cp_country'),
+        regno: val('cp_regno'),
+        signatory: signatories.filter(s=>s.name).map(s=>`${s.name} (${s.title})`).join(', '),
+        purpose: val('purpose'),
+        art36,
+      })
+    }).catch(()=>{}); // fire and forget, never block the user
+
     goStep(5);
   } catch(e) {
     alert('Error generating document: '+e.message);

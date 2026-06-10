@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NDA Log — DeltaQuad Admin</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --brand:#1a2e4a;--accent:#0ea5e9;--accent-light:#e0f2fe;
+  --success:#16a34a;--success-light:#dcfce7;
+  --danger:#dc2626;--danger-light:#fee2e2;
+  --surface:#fff;--surface2:#f8fafc;--surface3:#f1f5f9;
+  --border:#e2e8f0;--border2:#cbd5e1;
+  --text:#0f172a;--text2:#475569;--text3:#94a3b8;
+  --radius:10px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--surface3);color:var(--text);min-height:100vh}
+header{background:var(--brand);color:#fff;padding:0 2rem;display:flex;align-items:center;gap:1rem;height:60px;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+header h1{font-size:1.05rem;font-weight:600}
+header a{margin-left:auto;color:rgba(255,255,255,.7);font-size:.82rem;text-decoration:none}
+header a:hover{color:#fff}
+.layout{max-width:1100px;margin:0 auto;padding:2rem 1rem}
+.card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.08);padding:1.5rem;margin-bottom:1.25rem}
+
+/* Login */
+.login-wrap{max-width:360px;margin:4rem auto}
+.login-wrap h2{font-size:1.1rem;font-weight:600;margin-bottom:1.25rem}
+.field{display:flex;flex-direction:column;gap:.35rem;margin-bottom:1rem}
+label{font-size:.8rem;font-weight:500;color:var(--text2)}
+input{width:100%;padding:.55rem .75rem;border:1px solid var(--border2);border-radius:7px;font-size:.875rem;outline:none;font-family:inherit}
+input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(14,165,233,.12)}
+input.error{border-color:var(--danger)}
+.btn{padding:.6rem 1.3rem;border-radius:7px;font-size:.875rem;font-weight:500;cursor:pointer;border:none;font-family:inherit;display:inline-flex;align-items:center;gap:.4rem}
+.btn-primary{background:var(--accent);color:#fff;width:100%;justify-content:center}
+.btn-primary:hover{background:#0284c7}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.btn-ghost:hover{background:var(--surface3)}
+.err-msg{font-size:.8rem;color:var(--danger);margin-top:.5rem}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.25rem}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem}
+.stat-val{font-size:1.75rem;font-weight:700;color:var(--brand)}
+.stat-label{font-size:.78rem;color:var(--text3);margin-top:.2rem}
+
+/* Toolbar */
+.toolbar{display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap}
+.toolbar input{max-width:260px;padding:.45rem .7rem;font-size:.82rem}
+.toolbar select{padding:.45rem .7rem;border:1px solid var(--border2);border-radius:7px;font-size:.82rem;font-family:inherit;outline:none}
+.count{font-size:.82rem;color:var(--text3);margin-left:auto}
+
+/* Table */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+thead th{background:var(--surface2);padding:.6rem .75rem;text-align:left;font-weight:600;font-size:.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:hover{background:var(--surface2)}
+tbody td{padding:.6rem .75rem;color:var(--text);vertical-align:top}
+.td-sm{color:var(--text2)}
+.badge{display:inline-flex;align-items:center;font-size:.7rem;font-weight:600;padding:2px 8px;border-radius:20px}
+.badge-yes{background:var(--success-light);color:var(--success)}
+.badge-no{background:var(--surface3);color:var(--text3)}
+.purpose-cell{max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text2)}
+.empty{text-align:center;padding:3rem;color:var(--text3)}
+
+/* Spinner */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;margin:3rem auto;display:block}
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="6" fill="#0ea5e9" fill-opacity=".2"/>
+    <path d="M14 5L22 10V18L14 23L6 18V10L14 5Z" stroke="#0ea5e9" stroke-width="1.5" fill="none"/>
+  </svg>
+  <h1>NDA Log — DeltaQuad Admin</h1>
+  <a href="/">← Back to generator</a>
+</header>
+
+<div class="layout" id="app">
+  <!-- Login -->
+  <div class="login-wrap card" id="login_panel">
+    <h2>🔐 Admin login</h2>
+    <div class="field">
+      <label>Admin password</label>
+      <input type="password" id="secret_input" placeholder="Enter admin secret" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">Sign in</button>
+    <div class="err-msg" id="login_err" style="display:none">Incorrect password</div>
+  </div>
+
+  <!-- Log table -->
+  <div id="log_panel" style="display:none">
+    <div class="stats" id="stats_row"></div>
+
+    <div class="card">
+      <div class="toolbar">
+        <input type="text" id="search_box" placeholder="Search requester, company…" oninput="renderTable()">
+        <select id="art36_filter" onchange="renderTable()">
+          <option value="">All NDAs</option>
+          <option value="yes">Supplier (Art. 3.6)</option>
+          <option value="no">Standard</option>
+        </select>
+        <button class="btn btn-ghost" onclick="exportCSV()" style="font-size:.8rem">⬇ Export CSV</button>
+        <span class="count" id="count_label"></span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date / time</th>
+              <th>Requester</th>
+              <th>Dept</th>
+              <th>Counterparty</th>
+              <th>Country</th>
+              <th>Reg #</th>
+              <th>Signatory</th>
+              <th>Purpose</th>
+              <th>Art. 3.6</th>
+            </tr>
+          </thead>
+          <tbody id="tbl_body"></tbody>
+        </table>
+        <div class="empty" id="empty_msg" style="display:none">No entries found.</div>
+        <div class="spinner" id="spinner" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let allEntries = [];
+let secret = '';
+
+function doLogin() {
+  secret = document.getElementById('secret_input').value;
+  document.getElementById('login_err').style.display = 'none';
+  loadLog();
+}
+
+async function loadLog() {
+  document.getElementById('spinner').style.display = 'block';
+  try {
+    const r = await fetch('/api/log', { headers: { 'x-admin-secret': secret } });
+    if (r.status === 401) {
+      document.getElementById('login_err').style.display = 'block';
+      document.getElementById('spinner').style.display = 'none';
+      return;
+    }
+    const data = await r.json();
+    allEntries = data.entries || [];
+    document.getElementById('login_panel').style.display = 'none';
+    document.getElementById('log_panel').style.display = '';
+    renderStats();
+    renderTable();
+  } catch(e) {
+    alert('Failed to load log: ' + e.message);
+  } finally {
+    document.getElementById('spinner').style.display = 'none';
+  }
+}
+
+function renderStats() {
+  const total = allEntries.length;
+  const withArt36 = allEntries.filter(e=>e.art36).length;
+  const countries = new Set(allEntries.map(e=>e.country).filter(Boolean)).size;
+  const thisMonth = allEntries.filter(e => e.ts?.startsWith(new Date().toISOString().slice(0,7))).length;
+  document.getElementById('stats_row').innerHTML = `
+    <div class="stat"><div class="stat-val">${total}</div><div class="stat-label">Total NDAs</div></div>
+    <div class="stat"><div class="stat-val">${thisMonth}</div><div class="stat-label">This month</div></div>
+    <div class="stat"><div class="stat-val">${withArt36}</div><div class="stat-label">Supplier (Art. 3.6)</div></div>
+    <div class="stat"><div class="stat-val">${countries}</div><div class="stat-label">Countries</div></div>
+  `;
+}
+
+function renderTable() {
+  const q = document.getElementById('search_box').value.toLowerCase();
+  const art36f = document.getElementById('art36_filter').value;
+  let filtered = allEntries.filter(e => {
+    const match = !q || [e.requester,e.dept,e.counterparty,e.country,e.regno,e.signatory,e.purpose].join(' ').toLowerCase().includes(q);
+    const art36match = !art36f || (art36f==='yes'?e.art36:!e.art36);
+    return match && art36match;
+  });
+  document.getElementById('count_label').textContent = `${filtered.length} of ${allEntries.length} entries`;
+  const body = document.getElementById('tbl_body');
+  if (!filtered.length) {
+    body.innerHTML = '';
+    document.getElementById('empty_msg').style.display = 'block';
+    return;
+  }
+  document.getElementById('empty_msg').style.display = 'none';
+  body.innerHTML = filtered.map(e => {
+    const dt = e.ts ? new Date(e.ts).toLocaleString('nl-NL',{dateStyle:'short',timeStyle:'short'}) : '—';
+    return `<tr>
+      <td class="td-sm" style="white-space:nowrap">${dt}</td>
+      <td><strong>${esc(e.requester)}</strong></td>
+      <td class="td-sm">${esc(e.dept||'—')}</td>
+      <td>${esc(e.counterparty)}</td>
+      <td class="td-sm">${esc(e.country||'—')}</td>
+      <td class="td-sm">${esc(e.regno||'—')}</td>
+      <td class="td-sm">${esc(e.signatory||'—')}</td>
+      <td class="purpose-cell" title="${esc(e.purpose||'')}"><span class="td-sm">${esc(e.purpose||'—')}</span></td>
+      <td><span class="badge ${e.art36?'badge-yes':'badge-no'}">${e.art36?'Yes':'No'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function exportCSV() {
+  const headers = ['Date','Requester','Dept','Counterparty','Country','Reg #','Signatory','Purpose','Art.3.6'];
+  const rows = allEntries.map(e => [
+    e.ts ? new Date(e.ts).toLocaleString('nl-NL') : '',
+    e.requester, e.dept, e.counterparty, e.country, e.regno, e.signatory, e.purpose, e.art36?'Yes':'No'
+  ].map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `DeltaQuad_NDA_Log_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+</script>
+</body>
+</html>
