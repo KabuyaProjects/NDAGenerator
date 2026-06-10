@@ -769,6 +769,7 @@ async function generateNDA() {
         dept: val('req_dept'),
         counterparty: val('cp_name'),
         country: val('cp_country'),
+        regno: val('cp_regno'),
         regauth: val('cp_reg_auth'),
         signatory: signatories.filter(s=>s.name).map(s=>`${s.name} (${s.title})`).join(', '),
         purpose: val('purpose'),
