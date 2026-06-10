@@ -219,7 +219,32 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
         </div>
         <div class="field">
           <label>Registry / authority</label>
-          <input type="text" id="cp_reg_auth" placeholder="e.g. KvK, Companies House">
+          <select id="cp_reg_auth" onchange="onRegAuthChange()">
+            <option value="">— Select registry —</option>
+            <option value="Dutch Chamber of Commerce (KvK)">🇳🇱 Dutch Chamber of Commerce (KvK)</option>
+            <option value="UK Companies House">🇬🇧 UK Companies House</option>
+            <option value="German Handelsregister">🇩🇪 German Handelsregister</option>
+            <option value="French RCS (Registre du Commerce)">🇫🇷 French RCS</option>
+            <option value="Belgian Crossroads Bank (CBE)">🇧🇪 Belgian CBE</option>
+            <option value="Swedish Bolagsverket">🇸🇪 Swedish Bolagsverket</option>
+            <option value="Danish Business Authority">🇩🇰 Danish Business Authority</option>
+            <option value="Norwegian Brønnøysund Register">🇳🇴 Norwegian Brønnøysund</option>
+            <option value="Finnish Trade Register (PRH)">🇫🇮 Finnish PRH</option>
+            <option value="Swiss Commercial Register">🇨🇭 Swiss Commercial Register</option>
+            <option value="Austrian Firmenbuch">🇦🇹 Austrian Firmenbuch</option>
+            <option value="Spanish Registro Mercantil">🇪🇸 Spanish Registro Mercantil</option>
+            <option value="Italian Registro Imprese">🇮🇹 Italian Registro Imprese</option>
+            <option value="Polish KRS">🇵🇱 Polish KRS</option>
+            <option value="Irish Companies Registration Office">🇮🇪 Irish CRO</option>
+            <option value="Luxembourg RCS">🇱🇺 Luxembourg RCS</option>
+            <option value="US Delaware Division of Corporations">🇺🇸 US Delaware</option>
+            <option value="Canadian Business Registry">🇨🇦 Canadian Business Registry</option>
+            <option value="Australian ASIC">🇦🇺 Australian ASIC</option>
+            <option value="Singapore ACRA">🇸🇬 Singapore ACRA</option>
+            <option value="Israel Companies Registrar">🇮🇱 Israel Companies Registrar</option>
+            <option value="UAE Commercial Register">🇦🇪 UAE Commercial Register</option>
+            <option value="Other">🌐 Other</option>
+          </select>
         </div>
       </div>
     </div>
@@ -377,6 +402,38 @@ const COUNTRIES = [
 ];
 
 let selCountry = null;
+
+const COUNTRY_REGISTRY = {
+  'nl':'Dutch Chamber of Commerce (KvK)','gb':'UK Companies House',
+  'de':'German Handelsregister','fr':'French RCS (Registre du Commerce)',
+  'be':'Belgian Crossroads Bank (CBE)','se':'Swedish Bolagsverket',
+  'dk':'Danish Business Authority','no':'Norwegian Brønnøysund Register',
+  'fi':'Finnish Trade Register (PRH)','ch':'Swiss Commercial Register',
+  'at':'Austrian Firmenbuch','es':'Spanish Registro Mercantil',
+  'it':'Italian Registro Imprese','pl':'Polish KRS',
+  'ie':'Irish Companies Registration Office','lu':'Luxembourg RCS',
+  'us_de':'US Delaware Division of Corporations','ca_on':'Canadian Business Registry',
+  'au':'Australian ASIC','sg':'Singapore ACRA',
+  'il':'Israel Companies Registrar','ae':'UAE Commercial Register',
+};
+
+function onRegAuthChange() {
+  const sel = document.getElementById('cp_reg_auth');
+  if (sel && sel.tagName === 'SELECT' && sel.value === 'Other') {
+    const txt = document.createElement('input');
+    txt.type='text'; txt.id='cp_reg_auth'; txt.placeholder='Enter registry name';
+    sel.replaceWith(txt); txt.focus();
+  }
+}
+
+function setRegistryForCountry(jur) {
+  const reg = COUNTRY_REGISTRY[jur];
+  const el = document.getElementById('cp_reg_auth');
+  if (el && reg) {
+    if (el.tagName === 'SELECT') el.value = reg;
+    else el.value = reg;
+  }
+}
 let art36 = false;
 let docxBlob = null;
 let signatories = [{name:'',title:''}];
@@ -440,8 +497,9 @@ function pickCountry(jur) {
     document.getElementById('jur_hint').textContent = hint;
   }
   document.getElementById('country_dropdown').style.display='none';
-  document.getElementById('reg_result').className='reg-result';
-  document.getElementById('reg_btn').disabled = false;
+  document.getElementById('reg_result') && (document.getElementById('reg_result').className='reg-result');
+  document.getElementById('reg_btn') && (document.getElementById('reg_btn').disabled = false);
+  setRegistryForCountry(jur);
 }
 
 // ── Registry search (KvK for NL, OpenCorporates for others) ──
@@ -680,7 +738,7 @@ async function generateNDA() {
         dept: val('req_dept'),
         counterparty: val('cp_name'),
         country: val('cp_country'),
-        regno: val('cp_regno'),
+        regauth: val('cp_reg_auth'),
         signatory: signatories.filter(s=>s.name).map(s=>`${s.name} (${s.title})`).join(', '),
         purpose: val('purpose'),
         art36,
