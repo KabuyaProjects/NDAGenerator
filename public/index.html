@@ -176,11 +176,11 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
     <div class="card" id="lookup_card">
       <div class="card-title"><div class="card-title-icon">🔍</div>Company registry lookup</div>
 
-      <!-- Shown for Netherlands -->
-      <div id="kvk_lookup_box" style="display:none">
+      <!-- Shown for Netherlands (default visible) -->
+      <div id="kvk_lookup_box">
         <div class="alert alert-info">
           <span>🇳🇱</span>
-          <div>Search the Dutch KvK register by <strong>company name</strong> or <strong>KvK number</strong>.</div>
+          <div>Search the Dutch KvK register by <strong>company name</strong> or <strong>KvK number</strong>. Selecting a result will fill in the company details below.</div>
         </div>
         <div class="search-row" style="margin-bottom:.75rem">
           <input type="text" id="kvk_query" placeholder="e.g. Heineken or 12345678" onkeydown="if(event.key==='Enter')searchKvKDirect()">
@@ -189,8 +189,8 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
         <div class="reg-result" id="kvk_result"></div>
       </div>
 
-      <!-- Shown for all other countries -->
-      <div id="promo_box" style="background:linear-gradient(135deg,#1a2e4a 0%,#2c4f7a 100%);border-radius:8px;padding:1.25rem 1.5rem;color:#fff;display:flex;align-items:center;gap:1rem;">
+      <!-- Shown for non-Netherlands countries -->
+      <div id="promo_box" style="display:none;align-items:center;gap:1rem;background:linear-gradient(135deg,#1a2e4a 0%,#2c4f7a 100%);border-radius:8px;padding:1.25rem 1.5rem;color:#fff;">
         <div style="font-size:1.75rem;flex-shrink:0">🚀</div>
         <div>
           <div style="font-weight:700;font-size:.95rem;margin-bottom:.3rem">Upgrade to NDA Generator Pro or Ultimate</div>
@@ -482,9 +482,11 @@ function pickCpCountry(jur, name) {
 }
 
 function toggleLookupCard(jur) {
-  const isNL = jur === 'nl';
-  document.getElementById('kvk_lookup_box').style.display = isNL ? '' : 'none';
-  document.getElementById('promo_box').style.display = isNL ? 'none' : '';
+  // Default (no country picked yet) and NL both show the KvK lookup.
+  // Only switch to the promo once a different country is explicitly picked.
+  const showKvK = jur === 'nl' || jur === null || jur === undefined;
+  document.getElementById('kvk_lookup_box').style.display = showKvK ? '' : 'none';
+  document.getElementById('promo_box').style.display = showKvK ? 'none' : 'flex';
 }
 
 // ── Direct KvK search (Netherlands) ──
@@ -551,18 +553,28 @@ async function fillFromKvKDirect(i) {
   document.getElementById('cp_regno').value = co.kvk||'';
   document.getElementById('cp_reg_auth').value = 'Dutch Chamber of Commerce (KvK)';
 
-  // Try fetching officer/signatory data
+  // Fetch Basisprofiel for full address (postal code) and officer data
   if (co.kvk && /^\d{8}$/.test(co.kvk)) {
-    fetchOfficers(co.kvk);
+    fetchProfile(co.kvk);
   }
 }
 
-async function fetchOfficers(kvkNumber) {
+async function fetchProfile(kvkNumber) {
   const hint = document.getElementById('officer_hint');
-  hint.innerHTML = `<div style="font-size:.78rem;color:var(--text3);margin-bottom:.5rem"><span class="spinner dark" style="width:12px;height:12px;vertical-align:middle"></span> Checking authorized signatories…</div>`;
+  hint.innerHTML = `<div style="font-size:.78rem;color:var(--text3);margin-bottom:.5rem"><span class="spinner dark" style="width:12px;height:12px;vertical-align:middle"></span> Fetching full address &amp; checking signatories…</div>`;
   try {
     const r = await fetch(`/api/kvk-profile?kvk=${kvkNumber}`);
     const data = await r.json();
+
+    // Fill postal code / full address (Zoeken API doesn't return these)
+    if (data.address) {
+      const a = data.address;
+      const street = [a.straatnaam, [a.huisnummer, a.huisnummerToevoeging].filter(Boolean).join('')].filter(Boolean).join(' ');
+      if (street) document.getElementById('cp_street').value = street;
+      if (a.postcode) document.getElementById('cp_postal').value = a.postcode;
+      if (a.plaats) document.getElementById('cp_city').value = a.plaats;
+    }
+
     if (!data.available || !data.officers?.length) {
       hint.innerHTML = '';
       return;
