@@ -617,7 +617,7 @@ function renderSignatories() {
           <input type="text" value="${s.title}" placeholder="e.g. Managing Director" oninput="signatories[${i}].title=this.value" id="sig_title_${i}">
         </div>
         <div class="field span2">
-          <label>Email address</label>
+          <label>Email address <span class="req">*</span></label>
           <input type="email" value="${s.email||''}" placeholder="e.g. jan.devries@company.com" oninput="signatories[${i}].email=this.value" id="sig_email_${i}">
         </div>
       </div>
@@ -653,10 +653,13 @@ function goStep(n) {
   }
   if (n===3) {
     const errs=['cp_name','cp_street','cp_postal','cp_city','cp_country','cp_regno'].filter(id=>!val(id));
-    // Check at least one signatory has name+title
-    const firstEmpty = signatories.findIndex(s=>!s.name.trim()||!s.title.trim());
+    // Check every signatory has name + title + email
+    const firstEmpty = signatories.findIndex(s=>!s.name.trim()||!s.title.trim()||!s.email?.trim());
     if (firstEmpty>=0) {
-      errs.push(`sig_name_${firstEmpty}`);
+      const s = signatories[firstEmpty];
+      if (!s.name.trim()) errs.push(`sig_name_${firstEmpty}`);
+      else if (!s.title.trim()) errs.push(`sig_title_${firstEmpty}`);
+      else errs.push(`sig_email_${firstEmpty}`);
     }
     highlight(errs); if(errs.length) return;
   }
