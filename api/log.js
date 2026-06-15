@@ -42,6 +42,7 @@ module.exports = async function handler(req, res) {
         regno:        body.regno        || '',
         regauth:      body.regauth      || '',
         signatory:    body.signatory    || '',
+        signatory_emails: body.signatory_emails || '',
         purpose:      body.purpose      || '',
         art36:        body.art36        || false,
       });

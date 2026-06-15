@@ -173,9 +173,24 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
 
   <!-- STEP 2: Counterparty -->
   <div id="page2" style="display:none">
-    <div class="card">
+    <div class="card" id="lookup_card">
       <div class="card-title"><div class="card-title-icon">🔍</div>Company registry lookup</div>
-      <div style="background:linear-gradient(135deg,#1a2e4a 0%,#2c4f7a 100%);border-radius:8px;padding:1.25rem 1.5rem;color:#fff;display:flex;align-items:center;gap:1rem;">
+
+      <!-- Shown for Netherlands -->
+      <div id="kvk_lookup_box" style="display:none">
+        <div class="alert alert-info">
+          <span>🇳🇱</span>
+          <div>Search the Dutch KvK register by <strong>company name</strong> or <strong>KvK number</strong>.</div>
+        </div>
+        <div class="search-row" style="margin-bottom:.75rem">
+          <input type="text" id="kvk_query" placeholder="e.g. Heineken or 12345678" onkeydown="if(event.key==='Enter')searchKvKDirect()">
+          <button class="btn btn-primary" onclick="searchKvKDirect()" id="kvk_btn"><span id="kvk_btn_txt">Search</span></button>
+        </div>
+        <div class="reg-result" id="kvk_result"></div>
+      </div>
+
+      <!-- Shown for all other countries -->
+      <div id="promo_box" style="background:linear-gradient(135deg,#1a2e4a 0%,#2c4f7a 100%);border-radius:8px;padding:1.25rem 1.5rem;color:#fff;display:flex;align-items:center;gap:1rem;">
         <div style="font-size:1.75rem;flex-shrink:0">🚀</div>
         <div>
           <div style="font-weight:700;font-size:.95rem;margin-bottom:.3rem">Upgrade to NDA Generator Pro or Ultimate</div>
@@ -255,6 +270,7 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
 
     <div class="card">
       <div class="card-title"><div class="card-title-icon">✍️</div>Authorized signatories (counterparty)</div>
+      <div id="officer_hint"></div>
       <div id="signatories_list"></div>
       <button class="btn btn-ghost" style="margin-top:.75rem" onclick="addSignatory()">+ Add signatory</button>
     </div>
@@ -462,10 +478,114 @@ function pickCpCountry(jur, name) {
   document.getElementById('cp_country').value = name;
   document.getElementById('cp_country_dropdown').style.display = 'none';
   setRegistryForCountry(jur);
+  toggleLookupCard(jur);
+}
+
+function toggleLookupCard(jur) {
+  const isNL = jur === 'nl';
+  document.getElementById('kvk_lookup_box').style.display = isNL ? '' : 'none';
+  document.getElementById('promo_box').style.display = isNL ? 'none' : '';
+}
+
+// ── Direct KvK search (Netherlands) ──
+async function searchKvKDirect() {
+  const q = document.getElementById('kvk_query').value.trim();
+  if (!q) return;
+  const btn = document.getElementById('kvk_btn');
+  const txt = document.getElementById('kvk_btn_txt');
+  btn.disabled = true; txt.innerHTML = '<span class="spinner"></span>';
+
+  const resEl = document.getElementById('kvk_result');
+  resEl.className = 'reg-result'; resEl.innerHTML = '';
+
+  try {
+    const r = await fetch(`/api/kvk?q=${encodeURIComponent(q)}`);
+    if (!r.ok) throw new Error(`Lookup returned ${r.status}`);
+    const data = await r.json();
+
+    if (!data.resultaten || data.resultaten.length === 0) {
+      resEl.className = 'reg-result show warn';
+      resEl.innerHTML = `<strong>⚠️ No results</strong>No companies found for "${q}" in the Dutch registry.`;
+      return;
+    }
+
+    const sourceLabel = data.source === 'gleif'
+      ? `<span style="font-size:.72rem;opacity:.7;margin-left:.5rem">via GLEIF (KvK key pending/limited)</span>`
+      : data.source === 'opencorporates'
+      ? `<span style="font-size:.72rem;opacity:.7;margin-left:.5rem">via OpenCorporates</span>`
+      : `<span style="font-size:.72rem;opacity:.7;margin-left:.5rem">via KvK</span>`;
+
+    let html = `<strong>✅ Found ${data.resultaten.length} result(s) — click to select${sourceLabel}</strong><div class="reg-companies">`;
+    data.resultaten.slice(0,5).forEach((co,i) => {
+      const addr = co.adres?.binnenlandsAdres
+        ? `${co.adres.binnenlandsAdres.straatnaam||''} ${co.adres.binnenlandsAdres.huisnummer||''}, ${co.adres.binnenlandsAdres.postcode||''} ${co.adres.binnenlandsAdres.plaats||''}`
+        : '';
+      const safe = JSON.stringify({name:co.naam,kvk:co.kvkNummer,addr,street:co.adres?.binnenlandsAdres?.straatnaam||'',nr:co.adres?.binnenlandsAdres?.huisnummer||'',postal:co.adres?.binnenlandsAdres?.postcode||'',city:co.adres?.binnenlandsAdres?.plaats||''}).replace(/'/g,"&#39;");
+      html += `<div class="reg-company" onclick="fillFromKvKDirect(${i})" id="kvkd_co_${i}" data-co='${safe}'>
+        <div class="reg-company-name">🏢 ${co.naam}</div>
+        <div class="reg-company-meta">Reg# ${co.kvkNummer}${addr?' · '+addr:''}</div>
+      </div>`;
+    });
+    html += '</div>';
+    resEl.className = 'reg-result show ok';
+    resEl.innerHTML = html;
+  } catch(e) {
+    resEl.className = 'reg-result show err';
+    resEl.innerHTML = `<strong>⚠️ Search failed</strong>${e.message}<div style="margin-top:.3rem;font-size:.75rem;opacity:.7">Fill the company details manually below.</div>`;
+  } finally {
+    btn.disabled = false; txt.textContent = 'Search';
+  }
+}
+
+async function fillFromKvKDirect(i) {
+  const el = document.getElementById(`kvkd_co_${i}`);
+  const co = JSON.parse(el.dataset.co.replace(/&#39;/g,"'"));
+  document.querySelectorAll('#kvk_result .reg-company').forEach(e=>e.classList.remove('picked'));
+  el.classList.add('picked');
+
+  document.getElementById('cp_name').value = co.name||'';
+  document.getElementById('cp_street').value = (co.street+' '+co.nr).trim();
+  document.getElementById('cp_postal').value = co.postal||'';
+  document.getElementById('cp_city').value = co.city||'';
+  document.getElementById('cp_country').value = 'The Netherlands';
+  document.getElementById('cp_regno').value = co.kvk||'';
+  document.getElementById('cp_reg_auth').value = 'Dutch Chamber of Commerce (KvK)';
+
+  // Try fetching officer/signatory data
+  if (co.kvk && /^\d{8}$/.test(co.kvk)) {
+    fetchOfficers(co.kvk);
+  }
+}
+
+async function fetchOfficers(kvkNumber) {
+  const hint = document.getElementById('officer_hint');
+  hint.innerHTML = `<div style="font-size:.78rem;color:var(--text3);margin-bottom:.5rem"><span class="spinner dark" style="width:12px;height:12px;vertical-align:middle"></span> Checking authorized signatories…</div>`;
+  try {
+    const r = await fetch(`/api/kvk-profile?kvk=${kvkNumber}`);
+    const data = await r.json();
+    if (!data.available || !data.officers?.length) {
+      hint.innerHTML = '';
+      return;
+    }
+    let html = `<div style="background:var(--accent-light);border:1px solid #bae6fd;border-radius:8px;padding:.75rem 1rem;margin-bottom:.75rem;font-size:.8rem">
+      <strong style="display:block;margin-bottom:.4rem;color:#0c4a6e">📋 Registered officers (KvK)</strong>`;
+    data.officers.forEach(o => {
+      const badge = o.isAuthorized === true ? '<span class="badge badge-ok">✓ Authorized</span>'
+                  : o.isAuthorized === false ? '<span class="badge badge-no">✗ Not authorized</span>'
+                  : '';
+      html += `<div style="display:flex;align-items:center;gap:.5rem;padding:.15rem 0;color:#0c4a6e">
+        ${badge}<span style="font-weight:500">${o.naam}</span>${o.functietitel?`<span style="opacity:.7">· ${o.functietitel}</span>`:''}
+      </div>`;
+    });
+    html += `<div style="font-size:.7rem;opacity:.6;margin-top:.4rem;color:#0c4a6e">Use this to verify the signatory you enter below is authorized to sign.</div></div>`;
+    hint.innerHTML = html;
+  } catch(e) {
+    hint.innerHTML = '';
+  }
 }
 let art36 = false;
 let docxBlob = null;
-let signatories = [{name:'',title:''}];
+let signatories = [{name:'',title:'',email:''}];
 
 // ── Signatory management ──
 function renderSignatories() {
@@ -484,11 +604,15 @@ function renderSignatories() {
           <label>Title / role <span class="req">*</span></label>
           <input type="text" value="${s.title}" placeholder="e.g. Managing Director" oninput="signatories[${i}].title=this.value" id="sig_title_${i}">
         </div>
+        <div class="field span2">
+          <label>Email address</label>
+          <input type="email" value="${s.email||''}" placeholder="e.g. jan.devries@company.com" oninput="signatories[${i}].email=this.value" id="sig_email_${i}">
+        </div>
       </div>
     </div>`).join('');
 }
 function addSignatory() {
-  signatories.push({name:'',title:''});
+  signatories.push({name:'',title:'',email:''});
   renderSignatories();
   document.getElementById(`sig_name_${signatories.length-1}`)?.focus();
 }
@@ -498,184 +622,6 @@ function removeSig(i) {
 }
 // Render on load
 document.addEventListener('DOMContentLoaded', renderSignatories);
-
-// ── Country search ──
-function filterCountries() {
-  const q = document.getElementById('country_search').value.toLowerCase();
-  renderCountryList(COUNTRIES.filter(c => c.name.toLowerCase().includes(q)));
-}
-function showCountries() {
-  renderCountryList(COUNTRIES);
-  document.getElementById('country_dropdown').style.display = '';
-}
-let hideTimer;
-function hideCountries() { hideTimer = setTimeout(()=>{ document.getElementById('country_dropdown').style.display='none'; }, 200); }
-
-function renderCountryList(list) {
-  const dd = document.getElementById('country_dropdown');
-  dd.style.display = '';
-  dd.innerHTML = list.map(c => `<div class="country-opt${selCountry&&selCountry.jur===c.jur?' selected':''}" onmousedown="pickCountry('${c.jur}')">${c.flag?`<span class="flag">${c.flag}</span>`:''}${c.name}<span class="jur-code">${c.jur||'—'}</span></div>`).join('');
-}
-function pickCountry(jur) {
-  clearTimeout(hideTimer);
-  selCountry = COUNTRIES.find(c=>c.jur===jur)||null;
-  if (selCountry) {
-    document.getElementById('country_search').value = selCountry.name;
-    document.getElementById('cp_country').value = selCountry.name;
-    const hint = selCountry.kvk ? '🇳🇱 Will use Dutch KvK API' : (selCountry.jur ? `OpenCorporates: ${selCountry.jur}` : 'No registry available — fill details manually');
-    document.getElementById('jur_hint').textContent = hint;
-  }
-  document.getElementById('country_dropdown').style.display='none';
-  document.getElementById('reg_result') && (document.getElementById('reg_result').className='reg-result');
-  document.getElementById('reg_btn') && (document.getElementById('reg_btn').disabled = false);
-  setRegistryForCountry(jur);
-}
-
-// ── Registry search (KvK for NL, OpenCorporates for others) ──
-async function searchRegistry() {
-  if (!selCountry) {
-    document.getElementById('country_search').classList.add('error');
-    document.getElementById('country_search').focus();
-    showReg('warn','','<span>Please select a country first to narrow the search.</span>');
-    return;
-  }
-  document.getElementById('country_search').classList.remove('error');
-  const q = document.getElementById('reg_query').value.trim();
-  if (!q) return;
-  const btn = document.getElementById('reg_btn');
-  const txt = document.getElementById('reg_btn_txt');
-  btn.disabled=true; txt.innerHTML='<span class="spinner"></span>';
-
-  const res = document.getElementById('reg_result');
-  res.className='reg-result'; res.innerHTML='';
-
-  try {
-    if (selCountry && selCountry.kvk) {
-      await searchKvK(q);
-    } else if (selCountry && selCountry.jur) {
-      await searchOpenCorporates(q, selCountry.jur);
-    } else {
-      await searchOpenCorporates(q, null);
-    }
-  } catch(e) {
-    showReg('err','⚠️ Search failed', `<div>${e.message}</div><div style="margin-top:.3rem;font-size:.75rem;opacity:.7">Fill the company details manually below.</div>`);
-  } finally {
-    btn.disabled=false; txt.textContent='Search';
-  }
-}
-
-async function searchKvK(q) {
-  const url = `/api/kvk?q=${encodeURIComponent(q)}`;
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`Registry lookup returned ${r.status}`);
-  const data = await r.json();
-
-  if (!data.resultaten || data.resultaten.length === 0) {
-    showReg('warn','⚠️ No results',`No companies found for "${q}" in the Dutch registry.`); return;
-  }
-
-  const isOC = data.source === 'opencorporates';
-  const isGLEIF = data.source === 'gleif';
-  const sourceLabel = isGLEIF
-    ? `<span style="font-size:.72rem;opacity:.7;margin-left:.5rem">via GLEIF (KvK key pending)</span>`
-    : isOC
-    ? `<span style="font-size:.72rem;opacity:.7;margin-left:.5rem">via OpenCorporates (KvK key pending)</span>`
-    : `<span style="font-size:.72rem;opacity:.7;margin-left:.5rem">via KvK</span>`;
-
-  let html = `<strong>✅ Found ${data.resultaten.length} result(s) — click to select${sourceLabel}</strong><div class="reg-companies">`;
-  data.resultaten.slice(0,5).forEach((co,i) => {
-    const addr = co.adres?.binnenlandsAdres
-      ? `${co.adres.binnenlandsAdres.straatnaam||''} ${co.adres.binnenlandsAdres.huisnummer||''}, ${co.adres.binnenlandsAdres.postcode||''} ${co.adres.binnenlandsAdres.plaats||''}`
-      : '';
-    html += `<div class="reg-company" onclick="fillFromKvK(${i})" id="kvk_co_${i}" data-co='${JSON.stringify({name:co.naam,kvk:co.kvkNummer,addr,street:co.adres?.binnenlandsAdres?.straatnaam||'',nr:co.adres?.binnenlandsAdres?.huisnummer||'',postal:co.adres?.binnenlandsAdres?.postcode||'',city:co.adres?.binnenlandsAdres?.plaats||''}).replace(/'/g,"&#39;")}'>
-      <div class="reg-company-name">🏢 ${co.naam}</div>
-      <div class="reg-company-meta">Reg# ${co.kvkNummer}${addr?' · '+addr:''}</div>
-    </div>`;
-  });
-  html += '</div>';
-  showReg('ok','',html);
-}
-
-function fillFromKvK(i) {
-  const el = document.getElementById(`kvk_co_${i}`);
-  const co = JSON.parse(el.dataset.co.replace(/&#39;/g,"'"));
-  document.querySelectorAll('.reg-company').forEach(e=>e.classList.remove('picked'));
-  el.classList.add('picked');
-  document.getElementById('cp_name').value = co.name||'';
-  document.getElementById('cp_street').value = (co.street+' '+co.nr).trim();
-  document.getElementById('cp_postal').value = co.postal||'';
-  document.getElementById('cp_city').value = co.city||'';
-  document.getElementById('cp_country').value = 'The Netherlands';
-  setRegistryForCountry('nl');
-  document.getElementById('cp_regno').value = co.kvk||'';
-  document.getElementById('cp_reg_auth').value = 'Dutch Chamber of Commerce (KvK)';
-}
-
-async function searchOpenCorporates(q, jur) {
-  const isNum = /^[A-Z0-9\-\/]{4,20}$/i.test(q) && !/\s/.test(q);
-  const url = `/api/oc?q=${encodeURIComponent(q)}${jur ? '&jur=' + jur : ''}`;
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`OpenCorporates returned ${r.status}`);
-  const data = await r.json();
-
-  if (data.results) {
-    // single company fetch
-    const co = data.results.company;
-    if (!co) { showReg('warn','⚠️ Not found','No company found.'); return; }
-    let html = `<strong>✅ Company found — click to use</strong><div class="reg-companies">`;
-    html += buildOCCard(co, 0);
-    html += '</div>';
-    showReg('ok','',html);
-  } else {
-    const companies = data.results?.companies || [];
-    if (!companies.length) { showReg('warn','⚠️ No results',`No companies found for "${q}"${jur?' in '+jur:' globally'}.`); return; }
-    let html = `<strong>✅ ${companies.length} result(s) — click to select</strong><div class="reg-companies">`;
-    companies.slice(0,6).forEach((c,i) => { html += buildOCCard(c.company, i); });
-    html += '</div>';
-    showReg('ok','',html);
-  }
-}
-
-function buildOCCard(co, i) {
-  const addr = co.registered_address_in_full || co.registered_address?.street_address || '';
-  const status = co.current_status || co.company_status || '';
-  const safe = JSON.stringify({
-    name: co.name, regno: co.company_number, jur: co.jurisdiction_code,
-    addr: co.registered_address_in_full||'',
-    street: co.registered_address?.street_address||'',
-    postal: co.registered_address?.postal_code||'',
-    city: co.registered_address?.locality||'',
-    country: co.registered_address?.country||co.jurisdiction_code||'',
-    oc_url: co.opencorporates_url||''
-  }).replace(/'/g,"&#39;");
-  const flag = COUNTRIES.find(c=>c.jur===co.jurisdiction_code)?.flag||'🌐';
-  return `<div class="reg-company" onclick="fillFromOC(this)" id="oc_co_${i}" data-co='${safe}'>
-    <div class="reg-company-name">${flag} ${co.name} <span style="font-size:.72rem;font-weight:400;opacity:.7">${co.jurisdiction_code}</span></div>
-    <div class="reg-company-meta">Reg# ${co.company_number}${addr?' · '+addr:''}${status?' · '+status:''}</div>
-  </div>`;
-}
-
-function fillFromOC(el) {
-  const co = JSON.parse(el.dataset.co.replace(/&#39;/g,"'"));
-  document.querySelectorAll('.reg-company').forEach(e=>e.classList.remove('picked'));
-  el.classList.add('picked');
-  document.getElementById('cp_name').value = co.name||'';
-  const parts = (co.addr||'').split(',');
-  document.getElementById('cp_street').value = co.street||parts[0]||'';
-  document.getElementById('cp_postal').value = co.postal||'';
-  document.getElementById('cp_city').value = co.city||parts[1]?.trim()||'';
-  document.getElementById('cp_country').value = co.country||selCountry?.name||'';
-  if (selCountry?.jur) setRegistryForCountry(selCountry.jur);
-  document.getElementById('cp_regno').value = co.regno||'';
-  const jurName = COUNTRIES.find(c=>c.jur===co.jur)?.name||co.jur||'';
-  document.getElementById('cp_reg_auth').value = `${jurName} Company Registry`;
-}
-
-function showReg(type, title, body) {
-  const el = document.getElementById('reg_result');
-  el.className = `reg-result show ${type}`;
-  el.innerHTML = (title?`<strong>${title}</strong>`:'')+body;
-}
 
 // ── Art 3.6 toggle ──
 function toggleArt36() {
@@ -734,7 +680,7 @@ function populateReview() {
   document.getElementById('rev_cp_addr').textContent = `${val('cp_street')}, ${val('cp_postal')} ${val('cp_city')}, ${val('cp_country')}`;
   const regno = val('cp_regno');
   document.getElementById('rev_regno').textContent = regno ? `${regno}${val('cp_reg_auth')?' ('+val('cp_reg_auth')+')':''}` : 'Not provided';
-  document.getElementById('rev_sig').textContent = signatories.map(s=>`${s.name} — ${s.title}`).join(', ');
+  document.getElementById('rev_sig').textContent = signatories.map(s=>`${s.name} — ${s.title}${s.email?' ('+s.email+')':''}`).join(', ');
   document.getElementById('rev_purpose').textContent = val('purpose');
   const badge = document.getElementById('rev_art36');
   if (art36) { badge.className='art36-badge inc'; badge.textContent='✓ Included (supplier NDA)'; }
@@ -772,6 +718,7 @@ async function generateNDA() {
         regno: val('cp_regno'),
         regauth: val('cp_reg_auth'),
         signatory: signatories.filter(s=>s.name).map(s=>`${s.name} (${s.title})`).join(', '),
+        signatory_emails: signatories.filter(s=>s.email).map(s=>s.email).join(', '),
         purpose: val('purpose'),
         art36,
       })
@@ -1028,13 +975,16 @@ function reset() {
     if(el.type==='checkbox') el.checked=false;
     else el.value='';
   });
+  document.querySelectorAll('select').forEach(el=>el.selectedIndex=0);
   selCountry=null; art36=false; docxBlob=null;
-  signatories=[{name:'',title:''}];
+  signatories=[{name:'',title:'',email:''}];
   renderSignatories();
-  document.getElementById('kvk_result') && (document.getElementById('kvk_result').className='kvk-result');
-  document.getElementById('reg_result').className='reg-result';
+  const kvkResult = document.getElementById('kvk_result');
+  if (kvkResult) kvkResult.className = 'reg-result';
+  const officerHint = document.getElementById('officer_hint');
+  if (officerHint) officerHint.innerHTML = '';
   document.getElementById('art36_card').classList.remove('active');
-  document.getElementById('jur_hint').textContent='';
+  toggleLookupCard(null);
   goStep(1);
 }
 </script>

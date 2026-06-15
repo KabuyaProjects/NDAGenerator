@@ -118,6 +118,7 @@ tbody td{padding:.6rem .75rem;color:var(--text);vertical-align:top}
               <th>Country</th>
               <th>Reg #</th>
               <th>Signatory</th>
+              <th>Signatory Email</th>
               <th>Purpose</th>
               <th>Art. 3.6</th>
             </tr>
@@ -152,6 +153,13 @@ async function loadLog() {
     }
     const data = await r.json();
     allEntries = data.entries || [];
+    // Show debug info if empty
+    if (allEntries.length === 0 && data.debug) {
+      console.log('Debug:', data.debug);
+      if (!data.debug.url_set || !data.debug.token_set) {
+        alert('⚠️ Redis not configured: KV_REST_API_URL or KV_REST_API_TOKEN missing in Vercel env vars.');
+      }
+    }
     document.getElementById('login_panel').style.display = 'none';
     document.getElementById('log_panel').style.display = '';
     renderStats();
@@ -180,7 +188,7 @@ function renderTable() {
   const q = document.getElementById('search_box').value.toLowerCase();
   const art36f = document.getElementById('art36_filter').value;
   let filtered = allEntries.filter(e => {
-    const match = !q || [e.requester,e.dept,e.counterparty,e.country,e.regno,e.signatory,e.purpose].join(' ').toLowerCase().includes(q);
+    const match = !q || [e.requester,e.dept,e.counterparty,e.country,e.regno,e.signatory,e.signatory_emails,e.purpose].join(' ').toLowerCase().includes(q);
     const art36match = !art36f || (art36f==='yes'?e.art36:!e.art36);
     return match && art36match;
   });
@@ -202,6 +210,7 @@ function renderTable() {
       <td class="td-sm">${esc(e.country||'—')}</td>
       <td class="td-sm">${esc(e.regno||'—')}</td>
       <td class="td-sm">${esc(e.signatory||'—')}</td>
+      <td class="td-sm">${esc(e.signatory_emails||'—')}</td>
       <td class="purpose-cell" title="${esc(e.purpose||'')}"><span class="td-sm">${esc(e.purpose||'—')}</span></td>
       <td><span class="badge ${e.art36?'badge-yes':'badge-no'}">${e.art36?'Yes':'No'}</span></td>
     </tr>`;
@@ -213,10 +222,10 @@ function esc(s) {
 }
 
 function exportCSV() {
-  const headers = ['Date','Requester','Dept','Counterparty','Country','Reg #','Signatory','Purpose','Art.3.6'];
+  const headers = ['Date','Requester','Dept','Counterparty','Country','Reg #','Signatory','Signatory Email','Purpose','Art.3.6'];
   const rows = allEntries.map(e => [
     e.ts ? new Date(e.ts).toLocaleString('nl-NL') : '',
-    e.requester, e.dept, e.counterparty, e.country, e.regno, e.signatory, e.purpose, e.art36?'Yes':'No'
+    e.requester, e.dept, e.counterparty, e.country, e.regno, e.signatory, e.signatory_emails, e.purpose, e.art36?'Yes':'No'
   ].map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(','));
   const csv = [headers.join(','), ...rows].join('\n');
   const a = document.createElement('a');
