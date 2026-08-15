@@ -290,11 +290,6 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
           <textarea id="purpose" rows="4" placeholder="Describe the goal of the NDA as narrowly and precisely as possible. E.g.: evaluation of a potential partnership for the supply of UAV components for DeltaQuad's Pro X4 platform."></textarea>
           <span class="field-hint">This appears verbatim in the NDA. Be specific — courts interpret NDA scope strictly.</span>
         </div>
-        <div class="field">
-          <label>Effective date</label>
-          <input type="date" id="eff_date">
-          <span class="field-hint">Leave blank to use the date of last signature.</span>
-        </div>
       </div>
     </div>
     <div class="card">
@@ -330,7 +325,7 @@ input:checked+.toggle-track::after{transform:translateX(18px)}
           <div class="summary-row"><span class="summary-key">Company</span><span class="summary-val">DeltaQuad B.V.</span></div>
           <div class="summary-row"><span class="summary-key">Address</span><span class="summary-val">Industrieweg 3, 1115 AD, Duivendrecht, NL</span></div>
           <div class="summary-row"><span class="summary-key">KvK</span><span class="summary-val">51835193</span></div>
-          <div class="summary-row"><span class="summary-key">Signed by</span><span class="summary-val">R.K. Quatfass — Operations Manager</span></div>
+          <div class="summary-row"><span class="summary-key">Signed by</span><span class="summary-val">A. Smeets — CEO</span></div>
           <div class="summary-row"><span class="summary-key">Requested by</span><span class="summary-val" id="rev_requester">—</span></div>
         </div>
         <div class="summary-block">
@@ -864,8 +859,8 @@ async function buildDocx(docx) {
   for (let i=0;i<maxRows;i++){
     const sig = sigs[i];
     const dqName = i===0 ? 'DeltaQuad B.V.' : '';
-    const dqBy   = i===0 ? 'R.K. Quatfass' : '_______________';
-    const dqTitle= i===0 ? 'Operations Manager' : '_______________';
+    const dqBy   = i===0 ? 'A. Smeets' : '_______________';
+    const dqTitle= i===0 ? 'CEO' : '_______________';
     const cpBy   = sig?.name  || '';
     const cpTitle= sig?.title || '';
     sigRows.push(new TableRow({
@@ -892,14 +887,14 @@ async function buildDocx(docx) {
   });
 
   const art36Para = art36 ? [sub(
-    'If a receiving Party develops new proprietary information (such as software or product innovation) using Confidential Information received from the disclosing Party, the Parties shall in good faith agree on the ownership and use of such new proprietary information. The disclosing Party shall not be allowed to use such proprietary information outside the Purpose without the prior written consent of the receiving Party.'
+    'Each Party (or such Party\'s respective third party licensor) shall remain the sole owner of all of its respective Intellectual Property Rights ("IPR") acquired or developed by a Party (or developed by a third-party licensor and licensed to a Party) (i) prior to the start of the Agreement or (ii) established by a Party independently from the Agreement ("Background IPR"). If a receiving Party develops new IPR (such as software or product innovation) using Confidential Information received from the disclosing Party ("Foreground IPR"), the Parties shall in good faith agree on the ownership and use of such new proprietary information. The disclosing Party shall not be allowed to use such Foreground IPR information outside the Purpose without the prior written consent of the receiving Party.'
   )] : [];
 
   const children = [
     new Paragraph({children:[new TextRun({text:'MUTUAL NONDISCLOSURE AGREEMENT',font:'Arial',size:28,bold:true})],alignment:AlignmentType.CENTER,spacing:{before:240,after:240}}),
     para([new TextRun({text:'THIS AGREEMENT',...B}),new TextRun({text:' is executed by and between',...N})]),
     br(),
-    para([new TextRun({text:'DeltaQuad B.V.',...B}),new TextRun({text:' with its registered address at Industrieweg 3, 1115 AD, Duivendrecht, the Netherlands, registered with the Dutch Chamber of Commerce ("',...N}),new TextRun({text:'DCoC',...B}),new TextRun({text:'") under number 51835193, duly represented by its proxy, authorized representative, operations manager R.K Quatfass;',...N})]),
+    para([new TextRun({text:'DeltaQuad B.V.',...B}),new TextRun({text:' with its registered address at Industrieweg 3, 1115 AD, Duivendrecht, the Netherlands, registered with the Dutch Chamber of Commerce ("',...N}),new TextRun({text:'DCoC',...B}),new TextRun({text:'") under number 51835193, duly represented by its CEO, A. Smeets;',...N})]),
     br(),para('and'),br(),
     para([new TextRun({text:cpName,...B}),new TextRun({text:`, with its registered address at ${cpAddr},${regnoClause} duly represented by ${sigLine};`,...N})]),
     br(),para('each a "Party" and collectively the "Parties"'),br(),
@@ -921,7 +916,7 @@ async function buildDocx(docx) {
     blt('make copies of the Confidential Information and/or store or send Confidential Information outside its own systems or usual place of business only to the extent strictly necessary for the Purpose;'),
     blt('Limit access to Confidential Information to such of its employees reasonably requiring it for the purpose of this NDA and who are obligated to treat it as confidential and in the same manner as provided herein with regard to nonuse and nondisclosure; and'),
     blt('subject to the provisions of clause 3 of this NDA, not to disclose, publish or communicate the Confidential Information to a third party without the prior written consent of the disclosing Party;'),
-    blt("at the written request of the disclosing Party or upon termination of this NDA (whichever is the earlier), at the disclosing Party's option, to return the Confidential Information and any copies thereof in whole or in part to the disclosing Party or to confirm in writing to the disclosing Party that, except to the extent required by law or regulation, all copies thereof in whole or in part have been destroyed;"),
+    blt("at the written request of the disclosing Party or upon termination of this NDA (whichever is the earlier), at the disclosing Party's option, to return the Confidential Information and any copies thereof in whole or in part to the disclosing Party or to confirm in writing to the disclosing Party that, except to the extent required by law or regulation, all copies thereof in whole or in part (including the parts contained in other documents) have been destroyed. All electronic data (whether provided by the disclosing Party or made by the receiving Party or any of its Affiliates) containing any Confidential Information shall be deleted or removed from the databases of the receiving Party or each of its Affiliates unless electronic constraints prevent such deletion or removal from being effected;"),
     blt("Not remove the proprietary marking from any of the disclosing Party's Confidential Information."),
     sub('A receiving Party, upon discovery of any unauthorized use or disclosures, shall immediately notify the disclosing Party in writing and endeavor to prevent any further unauthorized use or disclosure.'),
     art('DISCLOSURE AND USE'),
@@ -932,7 +927,7 @@ async function buildDocx(docx) {
     sub("None of the Confidential Information which may be disclosed or exchanged by the Parties shall constitute any representation, warranty, assurance, guarantee or inducement by either Party to the other of any kind whatsoever other than as set forth herein to accomplish the purpose of this NDA."),
     ...art36Para,
     art('TERM'),
-    sub(`Subject to paragraph 4.2, the Parties may continue to provide Confidential Information for the term of this NDA. The term of this NDA shall be five (5) years from the effective date, which shall be ${dateStr}. This period of disclosure may be extended by mutual agreement through an amendment to this NDA. This NDA may be terminated by either party upon thirty (30) days written notice.`),
+    sub(`Subject to paragraph 4.2, the Parties may continue to provide Confidential Information for the term of this NDA. The term of this NDA shall be five (5) years from the effective date, which shall be determined by the date affixed hereto by the Party last signing this NDA. This period of disclosure may be extended by mutual agreement through an amendment to this NDA. This NDA may be terminated by either party upon thirty (30) days written notice.`),
     sub('The obligations under this NDA shall continue to apply to the Parties for a period of three (3) years from the termination date of this NDA.'),
     sub("If the Parties would enter into an agreement for the Purpose as contemplated in this NDA without agreeing to new confidentiality obligations, the rights and obligations in this NDA will apply mutatis mutandis to such agreement and the definition of 'Purpose' in this NDA will be replaced by 'performance of the agreement' irrespective of any 'entire agreement clause' in the agreement. In this situation, this NDA will become part of the agreement and the choice of law and court in the agreement will replace clause 9 of this NDA. The term of this NDA will be the same as the term of the agreement and this NDA can only be terminated under the same conditions as the agreement. Furthermore, the Parties acknowledge that contrary to clause 3.5 of this NDA, Confidential Information disclosed under the agreement can be agreed or intended to constitute a representation, warranty, assurance, guarantee or inducement. Save for the changes in this clause, all terms and conditions in this NDA (including but not limited to clause 4.2 of this NDA) will continue to be in force."),
     art('RELATIONSHIP OF PARTIES'),
@@ -946,14 +941,18 @@ async function buildDocx(docx) {
     art('VARIOUS'),
     sub('The rights and obligations under this NDA may not be transferred or assigned without the prior written consent of the other Party.'),
     sub('The invalidity or unenforceability of any term or right arising out of this NDA shall not in any way affect the remaining terms or rights. Any invalid or unenforceable term in this NDA shall be replaced by the Parties in good faith by a valid term with the same effect.'),
+    sub('None of the terms of this Agreement shall be amended or modified except in writing and signed by the Parties. Either Party may disclose the existence but not the terms of this Agreement.'),
+    sub("Neither Party may use the name, trademark, service mark or logo of the other Party in any publicity, advertising or information which is disseminated to the general public without the other Party's prior written approval."),
     art('GOVERNING LAW'),
     para('This NDA is made under and shall be construed in accordance with the laws of the Netherlands. Any dispute arising under this NDA shall be brought in a court located in Amsterdam.'),
     br(),br(),
     para([new TextRun({text:'IN WITNESS WHEREOF,',...B}),new TextRun({text:' the Parties hereto have caused this NDA to be duly executed and in effect on the day signed by both Parties.',...N})]),
     br(),
+    new Paragraph({children:[new TextRun({text:'——————————— signatures to follow on the next page ————————————',font:'Arial',size:18,color:'888888'})],alignment:AlignmentType.CENTER}),
+    br(),
     sigTable,
     br(),
-    new Paragraph({children:[new TextRun({text:'Mutual Nondisclosure Agreement - version 03-2025',font:'Arial',size:16,color:'888888'})]}),
+    new Paragraph({children:[new TextRun({text:'Mutual Nondisclosure Agreement - version 07-2026',font:'Arial',size:16,color:'888888'})]}),
   ];
 
   const doc2 = new Document({
