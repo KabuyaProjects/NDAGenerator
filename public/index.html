@@ -4,6 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DeltaQuad NDA Generator</title>
+<script>
+// Load docx library - try multiple CDNs in sequence
+window._docxLoaded = new Promise((resolve, reject) => {
+  function tryLoad(urls) {
+    if (!urls.length) { reject(new Error('Could not load docx library — check your internet connection and try again.')); return; }
+    const s = document.createElement('script');
+    s.src = urls[0];
+    s.onload = () => {
+      // UMD build exposes window.docx
+      if (window.docx && window.docx.Document) resolve(window.docx);
+      else reject(new Error('docx loaded but global not found'));
+    };
+    s.onerror = () => { console.warn('CDN failed:', urls[0]); tryLoad(urls.slice(1)); };
+    document.head.appendChild(s);
+  }
+  tryLoad([
+    'https://unpkg.com/docx@8.5.0/build/index.js',
+    'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js',
+  ]);
+});
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -704,8 +725,9 @@ async function generateNDA() {
   btn.disabled=true; inner.innerHTML='<span class="spinner"></span> Generating…';
   try {
     // Load docx library on demand via ESM
+    // Wait for docx library (loaded via script tag in head)
     if (!window._docx) {
-      window._docx = await import('https://esm.sh/docx@8.5.0');
+      window._docx = await window._docxLoaded;
     }
     docxBlob = await buildDocx(window._docx);
     const url = URL.createObjectURL(docxBlob);
